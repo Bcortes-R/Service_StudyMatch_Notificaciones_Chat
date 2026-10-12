@@ -1,26 +1,28 @@
-# Estas listas en memoria actúan como tus tablas de PostgreSQL
-tabla_conversaciones = []
-tabla_mensajes = []
+from sqlalchemy import create_engine
+from sqlalchemy.ext.declarative import declarative_base
+from sqlalchemy.orm import sessionmaker
 
-# En tu router de mensajes (routers/conversaciones.py):
-@app.post("/api/v1/conversaciones/{id}/mensajes", status_code=201)
-async def enviar_mensaje(id: int, mensaje: MensajeCreate):
-    nuevo_mensaje = {
-        "mensaje_id": len(tabla_mensajes) + 1,
-        "conversacion_id": id,
-        "contenido": mensaje.contenido,
-        "enviado_en": datetime.now().isoformat(),
-        "estado": "enviado"
-    }
-    # "Insertamos" en la base de datos simulada
-    tabla_mensajes.append(nuevo_mensaje)
-    
-    # Aquí también podrías llamar a manager.broadcast() para el WebSocket
-    
-    return nuevo_mensaje
+# Se apunta a una base de datos local (Un Archivo SQLite) para pruebas 
+# Actualizar la URL de conexion a la base de datos real según sea necesario
 
-@app.get("/api/v1/conversaciones/{id}/mensajes")
-async def obtener_mensajes(id: int):
-    # "Consultamos" (filtramos) la base de datos simulada
-    mensajes_del_chat = [msg for msg in tabla_mensajes if msg["conversacion_id"] == id]
-    return mensajes_del_chat
+SQLALCHEMY_DATABASE_URL = "sqlite:///./studymatch_mensajeria.db"  
+
+
+# Configuración de la base de datos
+engine = create_engine(
+    SQLALCHEMY_DATABASE_URL, connect_args={"check_same_thread": False}  # Solo para SQLite
+)
+
+SessionLocal = sessionmaker(autocommit=False, autoflush=False, bind=engine)
+Base = declarative_base()
+
+# Dependencia para abrir y cerrar sesiones de base de datos
+
+def get_db():
+    db = SessionLocal()
+    try:
+        yield db
+    finally:
+        db.close()
+
+

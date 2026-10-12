@@ -1,19 +1,27 @@
-from fastapi import FastAPI, WebSocket, WebSocketDisconnect
+from fastapi import FastAPI, WebSocket, WebSocketDisconnect, Depends
 from pydantic import BaseModel
 from typing import List
+from sqlalchemy.orm import Session
 from datetime import datetime
 
-app = FastAPI(title="StudyMatch - Mensajería")
+# Importamos la base de datos y los modelos
+from database import engine, get_db
+import models
+
+# ¡Esto crea el archivo físico .db y las tablas si no existen!
+models.Base.metadata.create_all(bind=engine)
+
+app = FastAPI(title="StudyMatch - Mensajería (Con SQLite)")
 
 # ==========================================
-# 1. ESQUEMAS Y SIMULACIÓN DE BASE DE DATOS
+# 1. ESQUEMAS DE VALIDACIÓN (PYDANTIC)
 # ==========================================
 class MensajeCreate(BaseModel):
     contenido: str
 
-# Listas que simulan PostgreSQL en memoria
-tabla_mensajes = []
-
+# ==========================================
+# 2. WEBSOCKETS (TIEMPO REAL)
+# ==========================================
 class ConnectionManager:
     def __init__(self):
         self.active_connections: List[WebSocket] = []
@@ -32,27 +40,46 @@ class ConnectionManager:
 manager = ConnectionManager()
 
 # ==========================================
-# 2. RUTAS REST (HTTP)
+# 3. RUTAS REST (AHORA CON BASE DE DATOS REAL)
 # ==========================================
+
+# Ruta temporal para crear una conversación de prueba rápido
+@app.post("/api/v1/conversaciones/crear_prueba", status_code=201)
+async def crear_conversacion_prueba(db: Session = Depends(get_db)):
+    nueva_conv = models.Conversacion(tipo="individual")
+    db.add(nueva_conv)
+    db.commit()
+    db.refresh(nueva_conv)
+    return nueva_conv
+
 @app.post("/api/v1/conversaciones/{id}/mensajes", status_code=201)
-async def enviar_mensaje(id: int, mensaje: MensajeCreate):
-    nuevo_mensaje = {
-        "mensaje_id": len(tabla_mensajes) + 1,
-        "conversacion_id": id,
-        "contenido": mensaje.contenido,
-        "enviado_en": datetime.now().isoformat(),
-        "estado": "enviado"
-    }
-    tabla_mensajes.append(nuevo_mensaje) # Guardamos en memoria
+async def enviar_mensaje(id: int, mensaje: MensajeCreate, db: Session = Depends(get_db)):
+    # Simulación de identidad (como si el Gateway nos pasara el JWT)
+    remitente_id_simulado = 25
+    
+    nuevo_mensaje = models.Mensaje(
+        conversacion_id=id,
+        remitente_id=remitente_id_simulado,
+        contenido=mensaje.contenido
+    )
+    
+    # 1. Guardar en SQLite
+    db.add(nuevo_mensaje)
+    db.commit()
+    db.refresh(nuevo_mensaje)
+    
+    # 2. Podríamos emitir el WebSocket aquí en el futuro
+    
     return nuevo_mensaje
 
 @app.get("/api/v1/conversaciones/{id}/mensajes")
-async def obtener_mensajes(id: int):
-    # Filtramos los mensajes de esta conversación específica
-    return [msg for msg in tabla_mensajes if msg["conversacion_id"] == id]
+async def obtener_mensajes(id: int, db: Session = Depends(get_db)):
+    # Hacemos un SELECT * FROM mensajes WHERE conversacion_id = id
+    mensajes = db.query(models.Mensaje).filter(models.Mensaje.conversacion_id == id).all()
+    return mensajes
 
 # ==========================================
-# 3. RUTA WEBSOCKET (TIEMPO REAL)
+# 4. RUTA WEBSOCKET
 # ==========================================
 @app.websocket("/api/v1/chat/ws")
 async def chat_websocket(websocket: WebSocket):
