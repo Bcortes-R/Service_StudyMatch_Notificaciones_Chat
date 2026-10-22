@@ -1,7 +1,7 @@
 from sqlalchemy import create_engine
-from sqlalchemy.ext.declarative import declarative_base
-from sqlalchemy.orm import sessionmaker
-
+from sqlalchemy.orm import declarative_base, sessionmaker
+from sqlalchemy.exc import OperationalError
+from fastapi import HTTPException
 # Se apunta a una base de datos local (Un Archivo SQLite) para pruebas 
 # Actualizar la URL de conexion a la base de datos real según sea necesario
 
@@ -22,6 +22,12 @@ def get_db():
     db = SessionLocal()
     try:
         yield db
+    except OperationalError:
+        db.rollback()
+        raise HTTPException(
+            status_code = 503,
+            detail = 'Base de datos temporalmente no disponible. Porfavor intente nuevamente más tarde.'
+        )
     finally:
         db.close()
 
