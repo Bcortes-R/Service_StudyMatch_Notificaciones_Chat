@@ -3,7 +3,7 @@ from sqlalchemy.orm import Session
 from typing import Dict, List, Optional
 import httpx
 import json
-
+from fastapi.middleware.cors import CORSMiddleware
 from database import engine, get_db
 import models
 from models import now_bogota_iso
@@ -16,6 +16,16 @@ app = FastAPI(
     title="StudyMatch - Servicio de Mensajería y Notificaciones",
     version="1.3",
     description="Microservicio de chat individual/grupal en tiempo real y alertas."
+)
+
+#Perimitir CORS para desarrollo local.
+
+app.add_middleware(
+    CORSMiddleware,
+    allow_origins=["*"],
+    allow_credentials=True,
+    allow_methods=["*"],
+    allow_headers=["*"],
 )
 
 # URLs de servicios externos (Apuntan a Mockoon en desarrollo local)
