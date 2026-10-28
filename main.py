@@ -1,15 +1,16 @@
 from fastapi import FastAPI, WebSocket, WebSocketDisconnect, Depends, HTTPException, Header, Query
+from fastapi.middleware.cors import CORSMiddleware
 from sqlalchemy.orm import Session
-from typing import Dict, List, Optional
+from typing import Any, Dict, List, Optional
 import httpx
 import json
-from fastapi.middleware.cors import CORSMiddleware
+
 from database import engine, get_db
 import models
 from models import now_bogota_iso
 import schemas
 
-# Crea las tablas en SQLite automáticamente
+# Crea las tablas en SQLite automáticamente si no existen
 models.Base.metadata.create_all(bind=engine)
 
 app = FastAPI(
@@ -18,8 +19,7 @@ app = FastAPI(
     description="Microservicio de chat individual/grupal en tiempo real y alertas."
 )
 
-#Perimitir CORS para desarrollo local.
-
+# Permitir CORS para desarrollo local, Hoppscotch Web y Dev Tunnels
 app.add_middleware(
     CORSMiddleware,
     allow_origins=["*"],
@@ -36,58 +36,72 @@ USUARIOS_SERVICE_URL = "http://localhost:3001/api/v1/users"
 # DEPENDENCIA DE SEGURIDAD (GATEWAY / JWT)
 # ==========================================
 def obtener_usuario_autenticado(
-    x_user_id: Optional[int] = Header(default=None, alias="X-User-Id"),
+    x_user_id: Optional[str] = Header(default=None, alias="X-User-Id"),
     authorization: Optional[str] = Header(default=None)
 ) -> int:
     """
     Extrae el usuario_id inyectado por el API Gateway (X-User-Id) o del Bearer Token.
-    Si no se envía ninguno, retorna 401 Unauthorized.
+    Si no se envía ninguno o es inválido, retorna 401 Unauthorized.
     """
-    if x_user_id is not None and x_user_id > 0:
-        return x_user_id
+    if x_user_id is not None and x_user_id.strip() != "":
+        valor = x_user_id.strip()
+        if valor.isdigit() and int(valor) > 0:
+            return int(valor)
+        raise HTTPException(
+            status_code=401,
+            detail="No Autorizado: La cabecera X-User-Id debe ser un número entero positivo."
+        )
+
     if authorization and authorization.startswith("Bearer "):
-        token = authorization.split(" ")[1]
-        # En pruebas locales permitimos 'Bearer 12' o un token simulado
-        if token.isdigit():
-            return int(token)
-        return 12  # Usuario por defecto si se envía un JWT de prueba
+        partes = authorization.split(" ")
+        if len(partes) > 1 and partes[1].strip():
+            token = partes[1].strip()
+            if token.isdigit() and int(token) > 0:
+                return int(token)
+            return 12  # Usuario por defecto si se envía un JWT simulado
+
     raise HTTPException(
         status_code=401,
-        detail="No Autorizado: Token de autenticación ausente, inválido o expirado."
+        detail="No Autorizado: Token de autenticación o cabecera X-User-Id ausente, inválido o expirado."
     )
 
 # ==========================================
 # 1. GESTOR DE WEBSOCKETS (TIEMPO REAL)
 # ==========================================
 class ConnectionManager:
-    def __init__(self):
-        # Mapea usuario_id -> lista de conexiones WebSocket activas
+    def __init__(self) -> None:
         self.active_connections: Dict[int, List[WebSocket]] = {}
 
-    async def connect(self, websocket: WebSocket, usuario_id: int):
+    async def connect(self, websocket: WebSocket, usuario_id: int) -> None:
         await websocket.accept()
         if usuario_id not in self.active_connections:
             self.active_connections[usuario_id] = []
         self.active_connections[usuario_id].append(websocket)
 
-    def disconnect(self, websocket: WebSocket, usuario_id: int):
+    def disconnect(self, websocket: WebSocket, usuario_id: int) -> None:
         if usuario_id in self.active_connections:
-            self.active_connections[usuario_id].remove(websocket)
+            if websocket in self.active_connections[usuario_id]:
+                self.active_connections[usuario_id].remove(websocket)
             if not self.active_connections[usuario_id]:
                 del self.active_connections[usuario_id]
 
     def is_connected(self, usuario_id: int) -> bool:
         return usuario_id in self.active_connections and len(self.active_connections[usuario_id]) > 0
 
-    async def send_to_user(self, usuario_id: int, payload: dict):
+    async def send_to_user(self, usuario_id: int, payload: Dict[str, Any]) -> None:
         if self.is_connected(usuario_id):
-            for ws in self.active_connections[usuario_id]:
-                await ws.send_text(json.dumps(payload, ensure_ascii=False))
+            conexiones_caidas: List[WebSocket] = []
+            for ws in list(self.active_connections[usuario_id]):
+                try:
+                    await ws.send_text(json.dumps(payload, ensure_ascii=False))
+                except Exception:
+                    conexiones_caidas.append(ws)
+            for ws in conexiones_caidas:
+                self.disconnect(ws, usuario_id)
 
-    async def broadcast(self, payload: dict):
-        for user_sockets in self.active_connections.values():
-            for ws in user_sockets:
-                await ws.send_text(json.dumps(payload, ensure_ascii=False))
+    async def broadcast(self, payload: Dict[str, Any]) -> None:
+        for uid in list(self.active_connections.keys()):
+            await self.send_to_user(uid, payload)
 
 manager = ConnectionManager()
 
@@ -97,14 +111,22 @@ async def chat_websocket(websocket: WebSocket, usuario_id: int = Query(default=1
     try:
         while True:
             raw_data = await websocket.receive_text()
+            data: Dict[str, Any]
             try:
-                data = json.loads(raw_data)
+                parsed = json.loads(raw_data)
+                if isinstance(parsed, dict):
+                    data = parsed
+                else:
+                    data = {"evento": "nuevo_mensaje", "contenido": str(parsed)}
             except json.JSONDecodeError:
                 data = {"evento": "nuevo_mensaje", "contenido": raw_data}
+
             data["remitente_id"] = usuario_id
             data["timestamp"] = now_bogota_iso()
             await manager.broadcast(data)
     except WebSocketDisconnect:
+        manager.disconnect(websocket, usuario_id)
+    except Exception:
         manager.disconnect(websocket, usuario_id)
 
 # ==========================================
@@ -128,7 +150,6 @@ async def crear_conversacion_individual(
                 elif resp.status_code >= 500:
                     raise HTTPException(status_code=503, detail="El servicio de Matching reportó un fallo interno.")
         except httpx.RequestError:
-            # Regla Sección J: Si Matching no responde (Timeout/Caída), rechazar con 503
             raise HTTPException(
                 status_code=503,
                 detail="Servicio de Matching temporalmente no disponible (Timeout/Conexión). No se pudo validar el match."
@@ -139,7 +160,6 @@ async def crear_conversacion_individual(
     db.commit()
     db.refresh(nueva_conv)
 
-    # Registrar ambos miembros
     for uid in [datos.usuario_id_1, datos.usuario_id_2]:
         db.add(models.MiembroConversacion(conversacion_id=nueva_conv.conversacion_id, usuario_id=uid))
     db.commit()
@@ -159,6 +179,10 @@ async def crear_conversacion_grupal(
     datos: schemas.ConversacionGrupalCreate,
     db: Session = Depends(get_db)
 ):
+    miembros_unicos = list(set(datos.miembros))
+    if len(miembros_unicos) < 2:
+        raise HTTPException(status_code=400, detail="Un grupo debe tener al menos 2 miembros distintos.")
+
     nueva_conv = models.Conversacion(
         tipo="grupal",
         grupo_id=datos.grupo_id,
@@ -168,7 +192,7 @@ async def crear_conversacion_grupal(
     db.commit()
     db.refresh(nueva_conv)
 
-    for uid in set(datos.miembros):
+    for uid in miembros_unicos:
         db.add(models.MiembroConversacion(conversacion_id=nueva_conv.conversacion_id, usuario_id=uid))
     db.commit()
 
@@ -177,7 +201,7 @@ async def crear_conversacion_grupal(
         "tipo": "grupal",
         "grupo_id": nueva_conv.grupo_id,
         "nombre": nueva_conv.nombre,
-        "miembros": list(set(datos.miembros)),
+        "miembros": miembros_unicos,
         "creada_en": nueva_conv.creada_en
     }
 
@@ -192,16 +216,15 @@ async def enviar_mensaje(
     db: Session = Depends(get_db)
 ):
     conv = db.query(models.Conversacion).filter(models.Conversacion.conversacion_id == id).first()
-    if not conv:
+    if conv is None:
         raise HTTPException(status_code=404, detail="Conversación no encontrada.")
 
-    # Validar que el remitente sea miembro activo de la conversación
     miembro = db.query(models.MiembroConversacion).filter(
         models.MiembroConversacion.conversacion_id == id,
         models.MiembroConversacion.usuario_id == usuario_actual,
         models.MiembroConversacion.estado == "activo"
     ).first()
-    if not miembro:
+    if miembro is None:
         raise HTTPException(status_code=403, detail="Prohibido: No eres miembro activo de esta conversación.")
 
     nuevo_msg = models.Mensaje(
@@ -214,7 +237,7 @@ async def enviar_mensaje(
     db.commit()
     db.refresh(nuevo_msg)
 
-    respuesta = {
+    respuesta: Dict[str, Any] = {
         "mensaje_id": nuevo_msg.mensaje_id,
         "conversacion_id": nuevo_msg.conversacion_id,
         "remitente_id": nuevo_msg.remitente_id,
@@ -223,7 +246,6 @@ async def enviar_mensaje(
         "estado": nuevo_msg.estado
     }
 
-    # Notificar a los demás miembros por WebSocket o guardar Notificación en BD
     otros_miembros = db.query(models.MiembroConversacion).filter(
         models.MiembroConversacion.conversacion_id == id,
         models.MiembroConversacion.usuario_id != usuario_actual,
@@ -256,7 +278,7 @@ async def obtener_mensajes(
     db: Session = Depends(get_db)
 ):
     conv = db.query(models.Conversacion).filter(models.Conversacion.conversacion_id == id).first()
-    if not conv:
+    if conv is None:
         raise HTTPException(status_code=404, detail="Conversación no encontrada.")
 
     query = db.query(models.Mensaje).filter(models.Mensaje.conversacion_id == id)
@@ -281,11 +303,14 @@ async def listar_conversaciones_usuario(
         models.MiembroConversacion.estado == "activo"
     ).offset((pagina - 1) * limite).limit(limite).all()
 
-    resultado = []
+    resultado: List[Dict[str, Any]] = []
     for memb in membresias:
         conv = db.query(models.Conversacion).filter(
             models.Conversacion.conversacion_id == memb.conversacion_id
         ).first()
+        if conv is None:
+            continue
+
         ultimo_msg = db.query(models.Mensaje).filter(
             models.Mensaje.conversacion_id == memb.conversacion_id
         ).order_by(models.Mensaje.mensaje_id.desc()).first()
@@ -294,7 +319,7 @@ async def listar_conversaciones_usuario(
             "conversacion_id": conv.conversacion_id,
             "tipo": conv.tipo,
             "nombre": conv.nombre,
-            "ultimo_mensaje": ultimo_msg.contenido if ultimo_msg else None,
+            "ultimo_mensaje": ultimo_msg.contenido if ultimo_msg is not None else None,
             "creada_en": conv.creada_en
         })
     return resultado
@@ -329,20 +354,22 @@ async def crear_notificacion(
 # 8. LISTAR NOTIFICACIONES DE UN USUARIO
 # ==========================================
 @app.get("/api/v1/notificaciones")
-@app.get("/api/v1/usuarios/{id}/notificaciones")
-async def listar_notificaciones(
-    id: Optional[int] = None,
-    x_user_id: Optional[int] = Header(default=None, alias="X-User-Id"),
+async def listar_mis_notificaciones(
+    usuario_actual: int = Depends(obtener_usuario_autenticado),
     db: Session = Depends(get_db)
 ):
-    target_user = id or x_user_id
-    if not target_user:
-        raise HTTPException(status_code=400, detail="Debe indicar el ID del usuario en la ruta o en la cabecera X-User-Id.")
-
-    notificaciones = db.query(models.Notificacion).filter(
-        models.Notificacion.usuario_id == target_user
+    return db.query(models.Notificacion).filter(
+        models.Notificacion.usuario_id == usuario_actual
     ).order_by(models.Notificacion.notificacion_id.desc()).all()
-    return notificaciones
+
+@app.get("/api/v1/usuarios/{id}/notificaciones")
+async def listar_notificaciones_por_id(
+    id: int,
+    db: Session = Depends(get_db)
+):
+    return db.query(models.Notificacion).filter(
+        models.Notificacion.usuario_id == id
+    ).order_by(models.Notificacion.notificacion_id.desc()).all()
 
 # ==========================================
 # 9. EDITAR MENSAJE
@@ -355,7 +382,7 @@ async def editar_mensaje(
     db: Session = Depends(get_db)
 ):
     msg = db.query(models.Mensaje).filter(models.Mensaje.mensaje_id == id).first()
-    if not msg:
+    if msg is None:
         raise HTTPException(status_code=404, detail="Mensaje no encontrado.")
     if msg.remitente_id != usuario_actual:
         raise HTTPException(status_code=403, detail="Prohibido: Solo el remitente original puede editar este mensaje.")
@@ -385,7 +412,7 @@ async def borrar_mensaje(
     db: Session = Depends(get_db)
 ):
     msg = db.query(models.Mensaje).filter(models.Mensaje.mensaje_id == id).first()
-    if not msg:
+    if msg is None:
         raise HTTPException(status_code=404, detail="Mensaje no encontrado.")
     if msg.remitente_id != usuario_actual:
         raise HTTPException(status_code=403, detail="Prohibido: Solo el remitente puede eliminar su propio mensaje.")
@@ -413,7 +440,7 @@ async def salir_de_grupo(
     db: Session = Depends(get_db)
 ):
     conv = db.query(models.Conversacion).filter(models.Conversacion.conversacion_id == id).first()
-    if not conv:
+    if conv is None:
         raise HTTPException(status_code=404, detail="Conversación no encontrada.")
     if conv.tipo == "individual":
         raise HTTPException(status_code=400, detail="No se pueden remover miembros de una conversación individual.")
@@ -423,7 +450,7 @@ async def salir_de_grupo(
         models.MiembroConversacion.usuario_id == usuario_id,
         models.MiembroConversacion.estado == "activo"
     ).first()
-    if not miembro:
+    if miembro is None:
         raise HTTPException(status_code=404, detail="El usuario no es miembro activo de este grupo.")
 
     miembro.estado = "removido"
