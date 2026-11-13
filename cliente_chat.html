@@ -1,0 +1,1096 @@
+<!doctype html>
+<html lang="es">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>StudyMatch | Mensajería y Notificaciones</title>
+    <style>
+      :root {
+        --bg-dark: #0f172a;
+        --bg-panel: #1e293b;
+        --bg-card: #334155;
+        --primary: #3b82f6;
+        --primary-hover: #2563eb;
+        --success: #10b981;
+        --warning: #f59e0b;
+        --danger: #ef4444;
+        --text-main: #f8fafc;
+        --text-muted: #94a3b8;
+        --border: #475569;
+      }
+
+      * {
+        box-sizing: border-box;
+        margin: 0;
+        padding: 0;
+        font-family:
+          "Segoe UI",
+          system-ui,
+          -apple-system,
+          sans-serif;
+      }
+
+      body {
+        background-color: var(--bg-dark);
+        color: var(--text-main);
+        height: 100vh;
+        display: flex;
+        flex-direction: column;
+        overflow: hidden;
+      }
+
+      header {
+        background-color: var(--bg-panel);
+        border-bottom: 1px solid var(--border);
+        padding: 10px 18px;
+        display: flex;
+        flex-wrap: wrap;
+        align-items: center;
+        justify-content: space-between;
+        gap: 12px;
+      }
+
+      .brand {
+        display: flex;
+        align-items: center;
+        gap: 10px;
+      }
+
+      .brand h1 {
+        font-size: 1.1rem;
+        font-weight: 700;
+        color: #60a5fa;
+      }
+
+      .badge {
+        padding: 3px 8px;
+        border-radius: 999px;
+        font-size: 0.75rem;
+        font-weight: 600;
+      }
+
+      .badge-ws-on {
+        background: rgba(16, 185, 129, 0.2);
+        color: #34d399;
+        border: 1px solid #10b981;
+      }
+      .badge-ws-off {
+        background: rgba(239, 68, 68, 0.2);
+        color: #f87171;
+        border: 1px solid #ef4444;
+      }
+
+      .config-bar {
+        display: flex;
+        flex-wrap: wrap;
+        align-items: center;
+        gap: 8px;
+      }
+
+      input,
+      select,
+      button {
+        background-color: var(--bg-dark);
+        color: var(--text-main);
+        border: 1px solid var(--border);
+        border-radius: 6px;
+        padding: 6px 10px;
+        font-size: 0.85rem;
+      }
+
+      input:focus,
+      select:focus {
+        outline: none;
+        border-color: var(--primary);
+      }
+
+      button {
+        background-color: var(--primary);
+        border: none;
+        cursor: pointer;
+        font-weight: 600;
+        transition: background 0.15s;
+      }
+
+      button:hover {
+        background-color: var(--primary-hover);
+      }
+      button.btn-secondary {
+        background-color: var(--bg-card);
+        border: 1px solid var(--border);
+      }
+      button.btn-secondary:hover {
+        background-color: #475569;
+      }
+      button.btn-success {
+        background-color: var(--success);
+      }
+      button.btn-warning {
+        background-color: var(--warning);
+        color: #000;
+      }
+      button.btn-danger {
+        background-color: var(--danger);
+      }
+
+      .main-grid {
+        display: grid;
+        grid-template-columns: 320px 1fr 340px;
+        flex: 1;
+        overflow: hidden;
+      }
+
+      .panel {
+        background-color: var(--bg-panel);
+        border-right: 1px solid var(--border);
+        display: flex;
+        flex-direction: column;
+        overflow: hidden;
+      }
+
+      .panel:last-child {
+        border-right: none;
+        border-left: 1px solid var(--border);
+      }
+
+      .panel-header {
+        padding: 12px 14px;
+        border-bottom: 1px solid var(--border);
+        display: flex;
+        justify-content: space-between;
+        align-items: center;
+        font-weight: 600;
+        font-size: 0.92rem;
+        background: rgba(15, 23, 42, 0.4);
+      }
+
+      .panel-body {
+        padding: 12px;
+        overflow-y: auto;
+        flex: 1;
+        display: flex;
+        flex-direction: column;
+        gap: 12px;
+      }
+
+      .card-box {
+        background-color: rgba(15, 23, 42, 0.55);
+        border: 1px solid var(--border);
+        border-radius: 8px;
+        padding: 10px;
+        display: flex;
+        flex-direction: column;
+        gap: 8px;
+      }
+
+      .card-box h3 {
+        font-size: 0.8rem;
+        color: var(--text-muted);
+        text-transform: uppercase;
+        letter-spacing: 0.5px;
+      }
+
+      .row {
+        display: flex;
+        gap: 6px;
+        align-items: center;
+      }
+
+      .row > * {
+        flex: 1;
+      }
+
+      .conv-list {
+        display: flex;
+        flex-direction: column;
+        gap: 6px;
+      }
+
+      .conv-item {
+        padding: 10px;
+        border-radius: 8px;
+        background-color: var(--bg-card);
+        border: 1px solid transparent;
+        cursor: pointer;
+        transition: all 0.15s;
+      }
+
+      .conv-item:hover,
+      .conv-item.active {
+        border-color: var(--primary);
+        background-color: rgba(59, 130, 246, 0.15);
+      }
+
+      .conv-title {
+        font-weight: 600;
+        font-size: 0.88rem;
+        display: flex;
+        justify-content: space-between;
+        align-items: center;
+      }
+
+      .conv-sub {
+        font-size: 0.78rem;
+        color: var(--text-muted);
+        margin-top: 4px;
+        white-space: nowrap;
+        overflow: hidden;
+        text-overflow: ellipsis;
+      }
+
+      .chat-window {
+        display: flex;
+        flex-direction: column;
+        background-color: var(--bg-dark);
+        overflow: hidden;
+      }
+
+      .chat-header {
+        padding: 12px 16px;
+        background-color: var(--bg-panel);
+        border-bottom: 1px solid var(--border);
+        display: flex;
+        justify-content: space-between;
+        align-items: center;
+      }
+
+      .messages-container {
+        flex: 1;
+        padding: 16px;
+        overflow-y: auto;
+        display: flex;
+        flex-direction: column;
+        gap: 10px;
+      }
+
+      .msg-bubble {
+        max-width: 76%;
+        padding: 10px 12px;
+        border-radius: 10px;
+        background-color: var(--bg-panel);
+        border: 1px solid var(--border);
+        align-self: flex-start;
+        display: flex;
+        flex-direction: column;
+        gap: 5px;
+      }
+
+      .msg-bubble.mine {
+        align-self: flex-end;
+        background-color: rgba(37, 99, 235, 0.25);
+        border-color: var(--primary);
+      }
+
+      .msg-bubble.deleted {
+        opacity: 0.65;
+        font-style: italic;
+        border-style: dashed;
+      }
+
+      .msg-meta {
+        font-size: 0.73rem;
+        color: var(--text-muted);
+        display: flex;
+        justify-content: space-between;
+        gap: 12px;
+      }
+
+      .msg-text {
+        font-size: 0.92rem;
+        line-height: 1.35;
+        word-break: break-word;
+      }
+
+      .msg-actions {
+        display: flex;
+        gap: 6px;
+        justify-content: flex-end;
+        margin-top: 2px;
+      }
+
+      .msg-actions button {
+        padding: 2px 7px;
+        font-size: 0.72rem;
+      }
+
+      .chat-input-bar {
+        padding: 12px 16px;
+        background-color: var(--bg-panel);
+        border-top: 1px solid var(--border);
+        display: flex;
+        gap: 8px;
+      }
+
+      .chat-input-bar input {
+        flex: 1;
+        padding: 10px;
+      }
+
+      .notif-item {
+        padding: 9px;
+        border-radius: 6px;
+        background-color: var(--bg-card);
+        border-left: 3px solid var(--warning);
+        font-size: 0.82rem;
+      }
+
+      .notif-item.match {
+        border-left-color: var(--success);
+      }
+
+      .http-log {
+        font-family: Consolas, monospace;
+        font-size: 0.75rem;
+        background-color: #020617;
+        color: #38bdf8;
+        padding: 10px;
+        border-radius: 6px;
+        border: 1px solid #1e293b;
+        max-height: 210px;
+        overflow-y: auto;
+        white-space: pre-wrap;
+      }
+    </style>
+  </head>
+  <body>
+    <header>
+      <div class="brand">
+        <h1>💬 StudyMatch | Chat & Notificaciones</h1>
+        <span id="wsStatusBadge" class="badge badge-ws-off"
+          >WS: Desconectado</span
+        >
+      </div>
+
+      <div class="config-bar">
+        <label style="font-size: 0.8rem; color: var(--text-muted)"
+          >API Backend:</label
+        >
+        <input type="text" id="baseUrlInput" style="width: 240px" />
+
+        <label
+          style="font-size: 0.8rem; color: var(--text-muted); margin-left: 6px"
+          >Sesión de Estudiante:</label
+        >
+        <select id="activeUserSelect" onchange="cambiarSesionUsuario()">
+          <option value="">Cargando estudiantes de Neon...</option>
+        </select>
+        <button class="btn-success" onclick="inicializarFrontend()">
+          🔄 Sincronizar
+        </button>
+      </div>
+    </header>
+
+    <div class="main-grid">
+      <!-- COLUMNA 1: CREACIÓN Y LISTADO DE CHATS -->
+      <div class="panel">
+        <div class="panel-header">
+          <span>📂 Mis Conversaciones</span>
+          <button
+            class="btn-secondary"
+            onclick="cargarConversaciones()"
+            style="padding: 3px 8px; font-size: 0.75rem"
+          >
+            Actualizar
+          </button>
+        </div>
+        <div class="panel-body">
+          <div class="card-box">
+            <h3>➕ Iniciar Chat Individual</h3>
+            <div class="row">
+              <select id="destUserSelect">
+                <option value="">Selecciona un compañero...</option>
+              </select>
+            </div>
+            <div class="row">
+              <select id="indOrigen">
+                <option value="directo">Directo (BD Producción)</option>
+                <option value="match">Validar con Servicio Matching</option>
+              </select>
+              <button onclick="crearConversacionIndividual()">
+                Abrir Chat
+              </button>
+            </div>
+          </div>
+
+          <div class="card-box">
+            <h3>👥 Crear Grupo de Estudio</h3>
+            <div class="row">
+              <input
+                type="number"
+                id="grpId"
+                placeholder="ID Grupo"
+                min="1"
+                style="max-width: 85px"
+              />
+              <input
+                type="text"
+                id="grpNombre"
+                placeholder="Nombre del grupo de estudio"
+              />
+            </div>
+            <div class="row">
+              <input
+                type="text"
+                id="grpMiembros"
+                placeholder="IDs de miembros (ej: 1, 2, 3)"
+              />
+              <button onclick="crearConversacionGrupal()">Crear Grupo</button>
+            </div>
+          </div>
+
+          <div class="card-box" style="flex: 1; overflow-y: auto">
+            <h3>Salas Activas en Base de Datos</h3>
+            <div id="convListContainer" class="conv-list">
+              <p style="font-size: 0.8rem; color: var(--text-muted)">
+                Cargando conversaciones...
+              </p>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <!-- COLUMNA 2: VENTANA DE CHAT -->
+      <div class="chat-window">
+        <div class="chat-header">
+          <div>
+            <strong id="activeChatTitle">Selecciona una conversación</strong>
+            <span
+              id="activeChatSubtitle"
+              style="
+                font-size: 0.8rem;
+                color: var(--text-muted);
+                margin-left: 8px;
+              "
+            ></span>
+          </div>
+          <div style="display: flex; gap: 8px">
+            <button class="btn-secondary" onclick="cargarMensajes()">
+              🔄 Recargar
+            </button>
+            <button
+              id="btnSalirGrupo"
+              class="btn-danger"
+              onclick="salirDeGrupo()"
+              style="display: none"
+            >
+              🚪 Salir del Grupo
+            </button>
+          </div>
+        </div>
+
+        <div id="messagesContainer" class="messages-container">
+          <p
+            style="
+              color: var(--text-muted);
+              text-align: center;
+              margin-top: 40px;
+            "
+          >
+            Elige un compañero o un grupo de estudio en el panel izquierdo para
+            conversar en tiempo real.
+          </p>
+        </div>
+
+        <div class="chat-input-bar">
+          <input
+            type="text"
+            id="mensajeInput"
+            maxlength="150"
+            placeholder="Escribe un mensaje (máx. 150 caracteres)..."
+            onkeydown="if (event.key === 'Enter') enviarMensaje();"
+          />
+          <button onclick="enviarMensaje()">Enviar Mensaje</button>
+        </div>
+      </div>
+
+      <!-- COLUMNA 3: NOTIFICACIONES Y MONITOR DE RED -->
+      <div class="panel">
+        <div class="panel-header">
+          <span>🔔 Centro de Notificaciones</span>
+          <button
+            class="btn-secondary"
+            onclick="cargarNotificaciones()"
+            style="padding: 3px 8px; font-size: 0.75rem"
+          >
+            Refrescar
+          </button>
+        </div>
+        <div class="panel-body">
+          <div class="card-box">
+            <h3>✨ Emitir Evento de Match</h3>
+            <div class="row">
+              <select
+                id="notifTargetSelect"
+                title="Estudiante que recibe la alerta"
+              ></select>
+              <input
+                type="number"
+                id="notifPorcentaje"
+                placeholder="% Match"
+                value="95"
+                min="1"
+                max="100"
+                style="max-width: 80px"
+              />
+            </div>
+            <button class="btn-success" onclick="crearNotificacionMatch()">
+              Simular Nuevo Match
+            </button>
+          </div>
+
+          <div
+            class="card-box"
+            style="flex: 1; overflow-y: auto; min-height: 140px"
+          >
+            <h3>Mis Alertas Recibidas</h3>
+            <div id="notifListContainer" class="conv-list">
+              <p style="font-size: 0.8rem; color: var(--text-muted)">
+                Sin notificaciones.
+              </p>
+            </div>
+          </div>
+
+          <div class="card-box">
+            <div class="row" style="justify-content: space-between">
+              <h3>📡 Monitor REST / WebSocket</h3>
+              <button
+                class="btn-secondary"
+                onclick="limpiarLog()"
+                style="max-width: 65px; padding: 2px 6px; font-size: 0.72rem"
+              >
+                Limpiar
+              </button>
+            </div>
+            <div id="httpLogBox" class="http-log">
+              Conectando con el microservicio...
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <script>
+      let usuariosMap = {};
+      let currentChat = {
+        id: null,
+        tipo: null,
+        receptorId: null,
+        grupoId: null,
+        titulo: "",
+      };
+      let wsConnection = null;
+
+      // Detectar automáticamente el servidor (Railway, DevTunnel o Localhost)
+      function detectarUrlBase() {
+        const input = document.getElementById("baseUrlInput");
+        if (!input.value) {
+          if (window.location.protocol.startsWith("http")) {
+            input.value = window.location.origin;
+          } else {
+            input.value = "http://localhost:8000";
+          }
+        }
+        return input.value.trim().replace(/\/+$/, "");
+      }
+
+      function getActiveUserId() {
+        return document.getElementById("activeUserSelect").value;
+      }
+
+      function getHeaders() {
+        const headers = {
+          "Content-Type": "application/json",
+          "X-Tunnel-Skip-AntiPhishing-Page": "true",
+        };
+        const uid = getActiveUserId();
+        if (uid !== "") {
+          headers["X-User-Id"] = uid;
+        }
+        return headers;
+      }
+
+      function nombreEstudiante(id) {
+        return usuariosMap[id]
+          ? `${usuariosMap[id].nombre} (#${id})`
+          : `Estudiante #${id}`;
+      }
+
+      function registrarLog(titulo, status, data) {
+        const box = document.getElementById("httpLogBox");
+        const hora = new Date().toLocaleTimeString();
+        const texto =
+          typeof data === "object"
+            ? JSON.stringify(data, null, 2)
+            : String(data);
+        box.textContent =
+          `[${hora}] ${titulo} (${status})\n${texto}\n` +
+          "─".repeat(36) +
+          "\n" +
+          box.textContent;
+      }
+
+      function limpiarLog() {
+        document.getElementById("httpLogBox").textContent = "";
+      }
+
+      async function inicializarFrontend() {
+        const base = detectarUrlBase();
+        try {
+          const res = await fetch(`${base}/api/v1/datos-iniciales`, {
+            headers: getHeaders(),
+          });
+          const data = await res.json();
+          registrarLog("GET /api/v1/datos-iniciales", res.status, data);
+
+          const selectActivo = document.getElementById("activeUserSelect");
+          const selectDestino = document.getElementById("destUserSelect");
+          const selectNotif = document.getElementById("notifTargetSelect");
+          const seleccionPrevia = selectActivo.value;
+
+          selectActivo.innerHTML = "";
+          selectDestino.innerHTML = "";
+          selectNotif.innerHTML = "";
+          usuariosMap = {};
+
+          const usuarios = data.usuarios_disponibles || [];
+          usuarios.forEach((u) => {
+            usuariosMap[u.usuario_id] = u;
+
+            const opt1 = document.createElement("option");
+            opt1.value = u.usuario_id;
+            opt1.textContent = `${u.nombre} (${u.correo}) [ID: ${u.usuario_id}]`;
+            selectActivo.appendChild(opt1);
+
+            const opt2 = document.createElement("option");
+            opt2.value = u.usuario_id;
+            opt2.textContent = `${u.nombre} [ID: ${u.usuario_id}]`;
+            selectDestino.appendChild(opt2);
+
+            const opt3 = document.createElement("option");
+            opt3.value = u.usuario_id;
+            opt3.textContent = `Para: ${u.nombre} [ID: ${u.usuario_id}]`;
+            selectNotif.appendChild(opt3);
+          });
+
+          // Opción para probar petición sin autenticación (401)
+          const optNoAuth = document.createElement("option");
+          optNoAuth.value = "";
+          optNoAuth.textContent = "🚫 Sin sesión activa (Probar 401)";
+          selectActivo.appendChild(optNoAuth);
+
+          if (seleccionPrevia && usuariosMap[seleccionPrevia]) {
+            selectActivo.value = seleccionPrevia;
+          } else if (usuarios.length > 0) {
+            selectActivo.value = usuarios[0].usuario_id;
+            if (usuarios.length > 1) {
+              selectDestino.value = usuarios[1].usuario_id;
+              selectNotif.value = usuarios[1].usuario_id;
+            }
+          }
+
+          // Autocompletar sugerencia de miembros con los IDs reales de Neon
+          if (usuarios.length >= 2) {
+            document.getElementById("grpMiembros").value = usuarios
+              .map((u) => u.usuario_id)
+              .join(", ");
+          }
+
+          cambiarSesionUsuario();
+        } catch (err) {
+          registrarLog("Error conectando al Backend", "ERR", err.message);
+        }
+      }
+
+      function cambiarSesionUsuario() {
+        conectarWebSocket();
+        cargarConversaciones();
+        cargarNotificaciones();
+        if (currentChat.id) {
+          cargarMensajes();
+        }
+      }
+
+      function conectarWebSocket() {
+        if (wsConnection) {
+          try {
+            wsConnection.close();
+          } catch (e) {}
+        }
+
+        const uid = getActiveUserId();
+        const badge = document.getElementById("wsStatusBadge");
+        if (!uid) {
+          badge.textContent = "WS: Sin Sesión";
+          badge.className = "badge badge-ws-off";
+          return;
+        }
+
+        const base = detectarUrlBase();
+        const wsProtocol = base.startsWith("https://") ? "wss://" : "ws://";
+        const hostPart = base.replace(/^https?:\/\//, "");
+        const wsUrl = `${wsProtocol}${hostPart}/api/v1/chat/ws?usuario_id=${encodeURIComponent(uid)}`;
+
+        badge.textContent = "WS: Conectando...";
+        wsConnection = new WebSocket(wsUrl);
+
+        wsConnection.onopen = () => {
+          badge.textContent = `En línea: ${nombreEstudiante(uid)}`;
+          badge.className = "badge badge-ws-on";
+        };
+
+        wsConnection.onmessage = (event) => {
+          let payload = event.data;
+          try {
+            payload = JSON.parse(event.data);
+          } catch (e) {}
+          registrarLog("⚡ Evento Tiempo Real (WS)", "PUSH", payload);
+          cargarConversaciones();
+          cargarNotificaciones();
+          if (currentChat.id) {
+            cargarMensajes();
+          }
+        };
+
+        wsConnection.onclose = () => {
+          badge.textContent = "WS: Desconectado";
+          badge.className = "badge badge-ws-off";
+        };
+      }
+
+      async function crearConversacionIndividual() {
+        const u1 = Number(getActiveUserId());
+        const u2 = Number(document.getElementById("destUserSelect").value);
+        const origen = document.getElementById("indOrigen").value;
+
+        if (!u1) {
+          alert("Selecciona primero una sesión de estudiante arriba.");
+          return;
+        }
+
+        const res = await fetch(`${detectarUrlBase()}/api/v1/conversaciones`, {
+          method: "POST",
+          headers: getHeaders(),
+          body: JSON.stringify({ usuario_id_1: u1, usuario_id_2: u2, origen }),
+        });
+        const data = await res.json();
+        registrarLog("POST /api/v1/conversaciones", res.status, data);
+
+        if (res.ok) {
+          abrirSala({
+            id: u2,
+            tipo: "individual",
+            receptorId: u2,
+            grupoId: null,
+            titulo: `Chat con ${nombreEstudiante(u2)}`,
+          });
+          await cargarConversaciones();
+        }
+      }
+
+      async function crearConversacionGrupal() {
+        const grupo_id =
+          Number(document.getElementById("grpId").value) ||
+          Math.floor(Math.random() * 500) + 1;
+        const nombre =
+          document.getElementById("grpNombre").value.trim() ||
+          "Grupo de Estudio";
+        const miembros = document
+          .getElementById("grpMiembros")
+          .value.split(",")
+          .map((x) => Number(x.trim()))
+          .filter((x) => !isNaN(x) && x > 0);
+
+        const res = await fetch(
+          `${detectarUrlBase()}/api/v1/conversaciones/grupo`,
+          {
+            method: "POST",
+            headers: getHeaders(),
+            body: JSON.stringify({ grupo_id, nombre, miembros }),
+          },
+        );
+        const data = await res.json();
+        registrarLog("POST /api/v1/conversaciones/grupo", res.status, data);
+
+        if (res.ok) {
+          await cargarConversaciones();
+          abrirSala({
+            id: data.grupo_id,
+            tipo: "grupal",
+            receptorId: null,
+            grupoId: data.grupo_id,
+            titulo: `👥 ${data.nombre}`,
+          });
+        }
+      }
+
+      async function cargarConversaciones() {
+        const uid = getActiveUserId();
+        const cont = document.getElementById("convListContainer");
+        if (!uid) {
+          cont.innerHTML =
+            '<p style="font-size:0.8rem;color:var(--danger);">Sin sesión activa.</p>';
+          return;
+        }
+
+        const res = await fetch(
+          `${detectarUrlBase()}/api/v1/usuarios/${uid}/conversaciones`,
+          {
+            headers: getHeaders(),
+          },
+        );
+        const lista = await res.json();
+        cont.innerHTML = "";
+
+        if (!Array.isArray(lista) || lista.length === 0) {
+          cont.innerHTML =
+            '<p style="font-size:0.8rem;color:var(--text-muted);">No tienes conversaciones aún. Inicia un chat arriba.</p>';
+          return;
+        }
+
+        lista.forEach((c) => {
+          const div = document.createElement("div");
+          const esActiva =
+            currentChat.id === c.conversacion_id && currentChat.tipo === c.tipo;
+          div.className = `conv-item ${esActiva ? "active" : ""}`;
+          const tituloSala =
+            c.tipo === "grupal"
+              ? `👥 ${c.nombre || "Grupo #" + c.grupo_id}`
+              : `👤 ${nombreEstudiante(c.conversacion_id)}`;
+
+          div.innerHTML = `
+          <div class="conv-title">
+            <span>${tituloSala}</span>
+            <span style="font-size:0.72rem;color:#60a5fa;">${c.tipo}</span>
+          </div>
+          <div class="conv-sub">${c.ultimo_mensaje ? "💬 " + c.ultimo_mensaje : "Sala lista para conversar"}</div>
+        `;
+          div.onclick = () =>
+            abrirSala({
+              id: c.conversacion_id,
+              tipo: c.tipo,
+              receptorId: c.tipo === "individual" ? c.conversacion_id : null,
+              grupoId: c.tipo === "grupal" ? c.grupo_id : null,
+              titulo: tituloSala,
+            });
+          cont.appendChild(div);
+        });
+      }
+
+      function abrirSala(sala) {
+        currentChat = sala;
+        document.getElementById("activeChatTitle").textContent = sala.titulo;
+        document.getElementById("activeChatSubtitle").textContent =
+          sala.tipo === "grupal"
+            ? `(ID de Grupo: ${sala.grupoId})`
+            : `(Conversación directa)`;
+        document.getElementById("btnSalirGrupo").style.display =
+          sala.tipo === "grupal" ? "inline-block" : "none";
+        cargarMensajes();
+        cargarConversaciones();
+      }
+
+      async function cargarMensajes() {
+        if (!currentChat.id) return;
+        const uid = getActiveUserId();
+        const queryParam =
+          currentChat.tipo === "individual" && uid ? `?usuario_id=${uid}` : "";
+        const res = await fetch(
+          `${detectarUrlBase()}/api/v1/conversaciones/${currentChat.id}/mensajes${queryParam}`,
+          {
+            headers: getHeaders(),
+          },
+        );
+        const data = await res.json();
+        const cont = document.getElementById("messagesContainer");
+        cont.innerHTML = "";
+
+        if (!Array.isArray(data) || data.length === 0) {
+          cont.innerHTML =
+            '<p style="color:var(--text-muted);text-align:center;margin-top:30px;">Aún no hay mensajes en esta sala. ¡Envía el primero!</p>';
+          return;
+        }
+
+        const miId = Number(uid);
+        data.forEach((m) => {
+          const esMio = m.remitente_id === miId;
+          const eliminado = m.estado === "eliminado" || m.contenido === null;
+          const bubble = document.createElement("div");
+          bubble.className = `msg-bubble ${esMio ? "mine" : ""} ${eliminado ? "deleted" : ""}`;
+
+          const textoMostrar = eliminado ? "🚫 Mensaje eliminado" : m.contenido;
+
+          bubble.innerHTML = `
+          <div class="msg-meta">
+            <strong>${nombreEstudiante(m.remitente_id)} ${esMio ? "(Tú)" : ""}</strong>
+            <span>#${m.mensaje_id} • ${m.estado} • ${m.enviado_en || ""}</span>
+          </div>
+          <div class="msg-text">${textoMostrar}</div>
+          ${
+            esMio && !eliminado
+              ? `
+            <div class="msg-actions">
+              <button class="btn-secondary" onclick="editarMensajePrompt(${m.mensaje_id}, ${JSON.stringify(m.contenido || "")})">✏️ Editar</button>
+              <button class="btn-danger" onclick="eliminarMensaje(${m.mensaje_id})">🗑️ Borrar</button>
+            </div>
+          `
+              : ""
+          }
+        `;
+          cont.appendChild(bubble);
+        });
+        cont.scrollTop = cont.scrollHeight;
+      }
+
+      async function enviarMensaje() {
+        if (!currentChat.id) {
+          alert("Primero abre o crea una conversación en el panel izquierdo.");
+          return;
+        }
+        const input = document.getElementById("mensajeInput");
+        const contenido = input.value.trim();
+        if (!contenido) return;
+
+        const payload = {
+          contenido,
+          receptor_id: currentChat.receptorId,
+          grupo_id: currentChat.grupoId,
+        };
+
+        const res = await fetch(
+          `${detectarUrlBase()}/api/v1/conversaciones/${currentChat.id}/mensajes`,
+          {
+            method: "POST",
+            headers: getHeaders(),
+            body: JSON.stringify(payload),
+          },
+        );
+        const data = await res.json();
+        registrarLog(
+          `POST /api/v1/conversaciones/${currentChat.id}/mensajes`,
+          res.status,
+          data,
+        );
+
+        if (res.ok) {
+          input.value = "";
+          await cargarMensajes();
+          await cargarConversaciones();
+        }
+      }
+
+      async function editarMensajePrompt(mensajeId, contenidoActual) {
+        const nuevo = prompt(
+          `Editar mensaje #${mensajeId}:`,
+          contenidoActual || "",
+        );
+        if (!nuevo || !nuevo.trim()) return;
+
+        const res = await fetch(
+          `${detectarUrlBase()}/api/v1/mensajes/${mensajeId}`,
+          {
+            method: "PUT",
+            headers: getHeaders(),
+            body: JSON.stringify({ contenido: nuevo.trim() }),
+          },
+        );
+        const data = await res.json();
+        registrarLog(`PUT /api/v1/mensajes/${mensajeId}`, res.status, data);
+        await cargarMensajes();
+      }
+
+      async function eliminarMensaje(mensajeId) {
+        const res = await fetch(
+          `${detectarUrlBase()}/api/v1/mensajes/${mensajeId}`,
+          {
+            method: "DELETE",
+            headers: getHeaders(),
+          },
+        );
+        const data = await res.json();
+        registrarLog(`DELETE /api/v1/mensajes/${mensajeId}`, res.status, data);
+        await cargarMensajes();
+      }
+
+      async function salirDeGrupo() {
+        const uid = getActiveUserId();
+        if (!currentChat.grupoId || !uid) return;
+        const res = await fetch(
+          `${detectarUrlBase()}/api/v1/conversaciones/${currentChat.grupoId}/miembros/${uid}`,
+          {
+            method: "DELETE",
+            headers: getHeaders(),
+          },
+        );
+        const data = await res.json();
+        registrarLog(
+          `DELETE /conversaciones/${currentChat.grupoId}/miembros/${uid}`,
+          res.status,
+          data,
+        );
+        await cargarConversaciones();
+      }
+
+      async function crearNotificacionMatch() {
+        const usuario_id = Number(
+          document.getElementById("notifTargetSelect").value,
+        );
+        const usuario_match_id = Number(getActiveUserId()) || 1;
+        const porcentaje_match =
+          Number(document.getElementById("notifPorcentaje").value) || 95;
+
+        const res = await fetch(`${detectarUrlBase()}/api/v1/notificaciones`, {
+          method: "POST",
+          headers: getHeaders(),
+          body: JSON.stringify({
+            match_id: Math.floor(Math.random() * 900) + 100,
+            usuario_id,
+            usuario_match_id,
+            habilidad_id: 1,
+            porcentaje_match,
+          }),
+        });
+        const data = await res.json();
+        registrarLog("POST /api/v1/notificaciones", res.status, data);
+        await cargarNotificaciones();
+      }
+
+      async function cargarNotificaciones() {
+        const res = await fetch(`${detectarUrlBase()}/api/v1/notificaciones`, {
+          headers: getHeaders(),
+        });
+        const data = await res.json();
+        const cont = document.getElementById("notifListContainer");
+        cont.innerHTML = "";
+
+        if (!res.ok) {
+          cont.innerHTML = `<p style="font-size:0.8rem;color:var(--danger);">${data.detail || "Error 401"}</p>`;
+          return;
+        }
+
+        if (!Array.isArray(data) || data.length === 0) {
+          cont.innerHTML =
+            '<p style="font-size:0.8rem;color:var(--text-muted);">No tienes notificaciones pendientes.</p>';
+          return;
+        }
+
+        data.forEach((n) => {
+          const div = document.createElement("div");
+          div.className = `notif-item ${n.tipo === "nuevo_match" ? "match" : ""}`;
+          div.innerHTML = `
+          <div style="display:flex;justify-content:space-between;font-weight:600;margin-bottom:3px;">
+            <span>${n.tipo === "nuevo_match" ? "🎯 Nuevo Match" : "📩 Nuevo Mensaje"}</span>
+            <span style="font-size:0.7rem;color:var(--text-muted);">#${n.notificacion_id}</span>
+          </div>
+          <div>${n.texto}</div>
+          <div style="font-size:0.7rem;color:var(--text-muted);margin-top:4px;">${n.creada_en || ""}</div>
+        `;
+          cont.appendChild(div);
+        });
+      }
+
+      window.addEventListener("DOMContentLoaded", () => {
+        inicializarFrontend();
+      });
+    </script>
+  </body>
+</html>
