@@ -16,26 +16,25 @@
       --bg-card: #152042;
       --bg-card-hover: #1c2b57;
       --bg-input: #080d1c;
-      --bg-chat-canvas: radial-gradient(circle at 80% 15%, rgba(139, 92, 246, 0.12), transparent 40%),
-                        radial-gradient(circle at 15% 85%, rgba(0, 242, 254, 0.10), transparent 45%),
+      --bg-chat-canvas: radial-gradient(circle at 80% 15%, rgba(139, 92, 246, 0.14), transparent 40%),
+                        radial-gradient(circle at 15% 85%, rgba(0, 242, 254, 0.12), transparent 45%),
                         #060b19;
       --text-main: #f1f5f9;
       --text-secondary: #94a3b8;
       --text-muted: #64748b;
-      --border-color: rgba(56, 189, 248, 0.18);
-      --border-strong: rgba(0, 242, 254, 0.42);
+      --border-color: rgba(56, 189, 248, 0.2);
+      --border-strong: rgba(0, 242, 254, 0.48);
       --neon-cyan: #00f2fe;
       --neon-blue: #3b82f6;
       --neon-purple: #8b5cf6;
       --neon-green: #10b981;
-      --neon-amber: #f59e0b;
       --neon-danger: #f43f5e;
       --msg-own-bg: linear-gradient(135deg, #2563eb 0%, #7c3aed 100%);
       --msg-own-text: #ffffff;
       --msg-other-bg: #131d3b;
       --msg-other-text: #f1f5f9;
-      --shadow-neon: 0 0 20px rgba(0, 242, 254, 0.14);
-      --shadow-panel: 0 12px 32px rgba(0, 0, 0, 0.65);
+      --shadow-neon: 0 0 20px rgba(0, 242, 254, 0.15);
+      --shadow-panel: 0 12px 32px rgba(0, 0, 0, 0.7);
       --focus-ring: 0 0 0 3px rgba(0, 242, 254, 0.45);
     }
 
@@ -56,7 +55,6 @@
       --neon-blue: #2563eb;
       --neon-purple: #6d28d9;
       --neon-green: #059669;
-      --neon-amber: #d97706;
       --neon-danger: #e11d48;
       --msg-own-bg: linear-gradient(135deg, #2563eb 0%, #4f46e5 100%);
       --msg-own-text: #ffffff;
@@ -98,7 +96,6 @@
       box-shadow: var(--focus-ring);
     }
 
-    /* Scrollbars estilizados */
     ::-webkit-scrollbar {
       width: 6px;
       height: 6px;
@@ -112,7 +109,7 @@
     }
 
     /* =========================================================
-       ESTRUCTURA PRINCIPAL
+       ESTRUCTURA GENERAL
        ========================================================= */
     .app-shell {
       display: flex;
@@ -122,7 +119,6 @@
       overflow: hidden;
     }
 
-    /* BARRA SUPERIOR */
     .topbar {
       display: flex;
       align-items: center;
@@ -147,7 +143,7 @@
     .brand {
       display: flex;
       align-items: center;
-      gap: 0.5rem;
+      gap: 0.45rem;
       font-weight: 800;
       font-size: 1.05rem;
       letter-spacing: -0.02em;
@@ -273,7 +269,7 @@
     }
 
     /* =========================================================
-       LAYOUT WORKSPACE (MOBILE-FIRST CON DRAWERS)
+       WORKSPACE Y DRAWERS RESPONSIVOS
        ========================================================= */
     .workspace {
       position: relative;
@@ -284,7 +280,6 @@
       overflow: hidden;
     }
 
-    /* Fondo semitransparente para cerrar paneles al tocar fuera en móvil */
     .drawer-backdrop {
       position: fixed;
       inset: 0;
@@ -301,7 +296,6 @@
       pointer-events: auto;
     }
 
-    /* PANELES LATERALES (Móvil: Drawers flotantes | Escritorio: Columnas colapsables) */
     .side-panel {
       position: fixed;
       top: 0;
@@ -373,7 +367,6 @@
       justify-content: space-between;
     }
 
-    /* Selector de miembros por nombre (chips accesibles sin IDs) */
     .members-checklist {
       display: flex;
       flex-wrap: wrap;
@@ -410,7 +403,6 @@
       font-weight: 600;
     }
 
-    /* Lista de conversaciones */
     .conv-list {
       display: flex;
       flex-direction: column;
@@ -668,9 +660,6 @@
       word-break: break-word;
     }
 
-    /* =========================================================
-       ADAPTACIÓN TABLET Y ESCRITORIO (>= 1024px)
-       ========================================================= */
     @media (min-width: 1024px) {
       .drawer-backdrop {
         display: none !important;
@@ -710,7 +699,7 @@
 </head>
 <body>
   <div class="app-shell">
-    <!-- BARRA DE NAVEGACIÓN SUPERIOR -->
+    <!-- BARRA SUPERIOR -->
     <header class="topbar" role="banner">
       <div class="topbar-left">
         <button
@@ -752,7 +741,7 @@
             <select
               id="session-user"
               class="select-control"
-              style="min-width: 190px;"
+              style="min-width: 195px;"
               aria-label="Seleccionar estudiante activo"
               onchange="cambiarSesionEstudiante()"
             ></select>
@@ -1007,15 +996,24 @@
     let MATERIAS_CACHE = [];
     let MAPA_NOMBRES = {};
     let USUARIO_ACTIVO_ID = null;
-    let CONVERSACION_ACTIVA = null; // { conversacion_id, tipo, nombre, grupo_id }
+    let CONVERSACION_ACTIVA = null;
     let WS_CLIENT = null;
 
-    // Inicializar URL del backend automáticamente (Localhost o Railway)
+    // Inicializar URL del backend automáticamente (Soporta file://, Live Server, Localhost y Railway)
     const inputApiUrl = document.getElementById("api-url");
-    inputApiUrl.value = window.location.origin;
+    if (
+      window.location.protocol === "file:" ||
+      !window.location.origin ||
+      window.location.origin === "null" ||
+      window.location.port === "5500"
+    ) {
+      inputApiUrl.value = "http://localhost:8000";
+    } else {
+      inputApiUrl.value = window.location.origin;
+    }
 
     function getBaseUrl() {
-      return (inputApiUrl.value || window.location.origin).replace(/\/+$/, "");
+      return (inputApiUrl.value || "http://localhost:8000").trim().replace(/\/+$/, "");
     }
 
     function obtenerNombreEstudiante(id) {
@@ -1023,12 +1021,12 @@
       return MAPA_NOMBRES[Number(id)] || "Estudiante de StudyMatch";
     }
 
-    // Reemplaza cualquier rastro antiguo de "estudiante 12" o "(#25)" por el nombre real
     function embellecerTextoSinIds(texto) {
       if (!texto) return "";
       let limpio = String(texto);
       limpio = limpio.replace(/estudiante\s+#?(\d+)/gi, (_, idNum) => obtenerNombreEstudiante(Number(idNum)));
       limpio = limpio.replace(/\s*\(#\d+\)/g, "");
+      limpio = limpio.replace(/\s*\[ID:\s*\d+\]/gi, "");
       return limpio;
     }
 
@@ -1115,7 +1113,6 @@
       actualizarBackdropMovil();
     }
 
-    // Cerrar drawers con la tecla Escape
     document.addEventListener("keydown", (ev) => {
       if (ev.key === "Escape" && esVistaMovil()) {
         cerrarDrawersMovil();
@@ -1127,18 +1124,30 @@
     // =========================================================
     async function sincronizarTodo() {
       try {
-        const resp = await fetch(`${getBaseUrl()}/api/v1/datos-iniciales`);
+        const url = `${getBaseUrl()}/api/v1/datos-iniciales`;
+        const resp = await fetch(url);
+        if (!resp.ok) {
+          throw new Error(`El servidor respondió HTTP ${resp.status} en ${url}`);
+        }
         const data = await resp.json();
-        USUARIOS_CACHE = data.usuarios || [];
+
+        USUARIOS_CACHE = Array.isArray(data)
+          ? data
+          : (data.usuarios || data.estudiantes || []);
         MATERIAS_CACHE = data.materias || [];
 
         MAPA_NOMBRES = {};
         USUARIOS_CACHE.forEach((u) => {
-          const uid = u.usuario_id || u.id;
-          const nombreCompleto = u.nombre_completo || `${u.nombre || ""} ${u.apellido || ""}`.trim();
-          MAPA_NOMBRES[Number(uid)] = nombreCompleto;
+          const uid = Number(u.usuario_id ?? u.id);
+          const nombreBase =
+            u.nombre_completo ||
+            `${u.nombre || ""} ${u.apellido || ""}`.trim() ||
+            u.correo ||
+            "Estudiante";
+          MAPA_NOMBRES[uid] = embellecerTextoSinIds(nombreBase);
         });
 
+        registrarMonitor(`Sincronizados ${USUARIOS_CACHE.length} estudiantes`, MAPA_NOMBRES);
         poblarSelectoresPorNombre();
         await cambiarSesionEstudiante();
       } catch (err) {
@@ -1153,7 +1162,9 @@
       const checklistGrupo = document.getElementById("group-members-list");
       const selMateria = document.getElementById("group-materia");
 
-      const previoId = Number(selSesion.value) || (USUARIOS_CACHE[0] && (USUARIOS_CACHE[0].usuario_id || USUARIOS_CACHE[0].id));
+      const previoId =
+        Number(selSesion.value) ||
+        (USUARIOS_CACHE[0] && Number(USUARIOS_CACHE[0].usuario_id ?? USUARIOS_CACHE[0].id));
 
       selSesion.innerHTML = "";
       selPeer.innerHTML = "";
@@ -1161,36 +1172,31 @@
       checklistGrupo.innerHTML = "";
 
       USUARIOS_CACHE.forEach((u) => {
-        const uid = Number(u.usuario_id || u.id);
+        const uid = Number(u.usuario_id ?? u.id);
         const nombre = MAPA_NOMBRES[uid];
 
-        // 1. Selector de sesión activa (Solo Nombre y Correo, sin mostrar ID)
         const optSesion = document.createElement("option");
         optSesion.value = uid;
         optSesion.textContent = u.correo ? `${nombre} (${u.correo})` : nombre;
         if (uid === previoId) optSesion.selected = true;
         selSesion.appendChild(optSesion);
 
-        // 2. Selector de compañero de chat individual (Solo Nombre)
         const optPeer = document.createElement("option");
         optPeer.value = uid;
         optPeer.textContent = nombre;
         selPeer.appendChild(optPeer);
 
-        // 3. Selector para simular Match (Solo Nombre)
         const optNotif = document.createElement("option");
         optNotif.value = uid;
         optNotif.textContent = `Para: ${nombre}`;
         selNotifTarget.appendChild(optNotif);
 
-        // 4. Casillas para elegir integrantes de grupo por Nombre
         const labelChip = document.createElement("label");
         labelChip.className = "member-chip";
         labelChip.innerHTML = `<input type="checkbox" value="${uid}" checked /> <span>${nombre}</span>`;
         checklistGrupo.appendChild(labelChip);
       });
 
-      // Seleccionar por defecto un compañero distinto al usuario en sesión
       const opcionesPeer = Array.from(selPeer.options);
       const distinto = opcionesPeer.find((o) => Number(o.value) !== Number(selSesion.value));
       if (distinto) {
@@ -1198,7 +1204,6 @@
         selNotifTarget.value = distinto.value;
       }
 
-      // Poblar selector de Materias
       selMateria.innerHTML = "";
       if (MATERIAS_CACHE.length === 0) {
         const optMat = document.createElement("option");
@@ -1207,7 +1212,7 @@
         selMateria.appendChild(optMat);
       } else {
         MATERIAS_CACHE.forEach((m) => {
-          const mid = m.materia_id || m.id;
+          const mid = m.materia_id ?? m.id;
           const optMat = document.createElement("option");
           optMat.value = mid;
           optMat.textContent = m.nombre;
@@ -1221,7 +1226,6 @@
       USUARIO_ACTIVO_ID = Number(selSesion.value);
       if (!USUARIO_ACTIVO_ID) return;
 
-      // Ajustar selector de compañero para que no apunte a sí mismo por defecto
       const selPeer = document.getElementById("peer-user");
       if (Number(selPeer.value) === USUARIO_ACTIVO_ID) {
         const otraOpcion = Array.from(selPeer.options).find((o) => Number(o.value) !== USUARIO_ACTIVO_ID);
@@ -1233,7 +1237,7 @@
     }
 
     // =========================================================
-    // CONEXIÓN WEBSOCKET (SOPORTA WS:// EN LOCAL Y WSS:// EN RAILWAY)
+    // CONEXIÓN WEBSOCKET (WS:// EN LOCAL Y WSS:// EN RAILWAY)
     // =========================================================
     function conectarWebSocket(usuarioId) {
       if (WS_CLIENT) {
@@ -1348,7 +1352,6 @@
       document.getElementById("msg-input").disabled = false;
       document.getElementById("btn-send").disabled = false;
 
-      // En móvil, cerrar automáticamente el cajón lateral al elegir una sala
       if (esVistaMovil()) {
         cerrarDrawersMovil();
       }
@@ -1460,12 +1463,16 @@
         mensajes.forEach((m) => {
           const esMio = Number(m.remitente_id) === USUARIO_ACTIVO_ID;
           const eliminado = m.estado === "eliminado" || m.eliminado === true;
-          const autorNombre = esMio ? "Tú" : obtenerNombreEstudiante(m.remitente_id);
+          const autorNombre = esMio
+            ? "Tú"
+            : (m.remitente_nombre ? embellecerTextoSinIds(m.remitente_nombre) : obtenerNombreEstudiante(m.remitente_id));
 
           const fila = document.createElement("div");
           fila.className = `msg-row ${esMio ? "own" : "other"}`;
 
-          const fechaStr = m.enviado_en ? new Date(m.enviado_en).toLocaleTimeString("es-CO", { hour: "2-digit", minute: "2-digit" }) : "";
+          const fechaStr = m.enviado_en
+            ? new Date(m.enviado_en).toLocaleTimeString("es-CO", { hour: "2-digit", minute: "2-digit" })
+            : "";
 
           fila.innerHTML = `
             <span class="msg-author">${autorNombre}</span>
