@@ -1,1096 +1,1615 @@
-<!doctype html>
-<html lang="es">
-  <head>
-    <meta charset="UTF-8" />
-    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-    <title>StudyMatch | Mensajería y Notificaciones</title>
-    <style>
-      :root {
-        --bg-dark: #0f172a;
-        --bg-panel: #1e293b;
-        --bg-card: #334155;
-        --primary: #3b82f6;
-        --primary-hover: #2563eb;
-        --success: #10b981;
-        --warning: #f59e0b;
-        --danger: #ef4444;
-        --text-main: #f8fafc;
-        --text-muted: #94a3b8;
-        --border: #475569;
+<!DOCTYPE html>
+<html lang="es" data-theme="dark">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>StudyMatch | Mensajería y Notificaciones</title>
+  <style>
+    /* =========================================================
+       VARIABLES DE TEMA: OPCIÓN 2 "NOCHE NEÓN" (DEFAULT) Y CLARO
+       ========================================================= */
+    :root,
+    [data-theme="dark"] {
+      --bg-app: #050914;
+      --bg-panel: #0b1124;
+      --bg-panel-elevated: #111a36;
+      --bg-card: #152042;
+      --bg-card-hover: #1c2b57;
+      --bg-input: #080d1c;
+      --bg-chat-canvas: radial-gradient(circle at 80% 15%, rgba(139, 92, 246, 0.12), transparent 40%),
+                        radial-gradient(circle at 15% 85%, rgba(0, 242, 254, 0.10), transparent 45%),
+                        #060b19;
+      --text-main: #f1f5f9;
+      --text-secondary: #94a3b8;
+      --text-muted: #64748b;
+      --border-color: rgba(56, 189, 248, 0.18);
+      --border-strong: rgba(0, 242, 254, 0.42);
+      --neon-cyan: #00f2fe;
+      --neon-blue: #3b82f6;
+      --neon-purple: #8b5cf6;
+      --neon-green: #10b981;
+      --neon-amber: #f59e0b;
+      --neon-danger: #f43f5e;
+      --msg-own-bg: linear-gradient(135deg, #2563eb 0%, #7c3aed 100%);
+      --msg-own-text: #ffffff;
+      --msg-other-bg: #131d3b;
+      --msg-other-text: #f1f5f9;
+      --shadow-neon: 0 0 20px rgba(0, 242, 254, 0.14);
+      --shadow-panel: 0 12px 32px rgba(0, 0, 0, 0.65);
+      --focus-ring: 0 0 0 3px rgba(0, 242, 254, 0.45);
+    }
+
+    [data-theme="light"] {
+      --bg-app: #f1f5f9;
+      --bg-panel: #ffffff;
+      --bg-panel-elevated: #f8fafc;
+      --bg-card: #f1f5f9;
+      --bg-card-hover: #e2e8f0;
+      --bg-input: #ffffff;
+      --bg-chat-canvas: linear-gradient(180deg, #f8fafc 0%, #eef2ff 100%);
+      --text-main: #0f172a;
+      --text-secondary: #334155;
+      --text-muted: #64748b;
+      --border-color: #cbd5e1;
+      --border-strong: #2563eb;
+      --neon-cyan: #0284c7;
+      --neon-blue: #2563eb;
+      --neon-purple: #6d28d9;
+      --neon-green: #059669;
+      --neon-amber: #d97706;
+      --neon-danger: #e11d48;
+      --msg-own-bg: linear-gradient(135deg, #2563eb 0%, #4f46e5 100%);
+      --msg-own-text: #ffffff;
+      --msg-other-bg: #ffffff;
+      --msg-other-text: #0f172a;
+      --shadow-neon: 0 4px 14px rgba(37, 99, 235, 0.12);
+      --shadow-panel: 0 10px 25px rgba(15, 23, 42, 0.12);
+      --focus-ring: 0 0 0 3px rgba(37, 99, 235, 0.35);
+    }
+
+    /* =========================================================
+       RESET Y BASE ACCESIBLE (MOBILE-FIRST)
+       ========================================================= */
+    * {
+      box-sizing: border-box;
+      margin: 0;
+      padding: 0;
+    }
+
+    html, body {
+      height: 100%;
+      width: 100%;
+      overflow: hidden;
+      font-family: 'Inter', system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
+      background-color: var(--bg-app);
+      color: var(--text-main);
+      font-size: 14px;
+      line-height: 1.45;
+      transition: background-color 0.25s ease, color 0.25s ease;
+    }
+
+    button, select, input, textarea {
+      font: inherit;
+      color: inherit;
+    }
+
+    :focus-visible {
+      outline: none;
+      box-shadow: var(--focus-ring);
+    }
+
+    /* Scrollbars estilizados */
+    ::-webkit-scrollbar {
+      width: 6px;
+      height: 6px;
+    }
+    ::-webkit-scrollbar-track {
+      background: transparent;
+    }
+    ::-webkit-scrollbar-thumb {
+      background: var(--border-color);
+      border-radius: 999px;
+    }
+
+    /* =========================================================
+       ESTRUCTURA PRINCIPAL
+       ========================================================= */
+    .app-shell {
+      display: flex;
+      flex-direction: column;
+      height: 100dvh;
+      width: 100vw;
+      overflow: hidden;
+    }
+
+    /* BARRA SUPERIOR */
+    .topbar {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      gap: 0.5rem;
+      padding: 0.6rem 0.85rem;
+      background: var(--bg-panel);
+      border-bottom: 1px solid var(--border-color);
+      box-shadow: var(--shadow-neon);
+      z-index: 40;
+      flex-wrap: wrap;
+    }
+
+    .topbar-left,
+    .topbar-right {
+      display: flex;
+      align-items: center;
+      gap: 0.5rem;
+      flex-wrap: wrap;
+    }
+
+    .brand {
+      display: flex;
+      align-items: center;
+      gap: 0.5rem;
+      font-weight: 800;
+      font-size: 1.05rem;
+      letter-spacing: -0.02em;
+      background: linear-gradient(90deg, var(--neon-cyan), var(--neon-purple));
+      -webkit-background-clip: text;
+      background-clip: text;
+      color: transparent;
+      white-space: nowrap;
+    }
+
+    .ws-badge {
+      display: inline-flex;
+      align-items: center;
+      gap: 0.35rem;
+      padding: 0.22rem 0.65rem;
+      border-radius: 999px;
+      font-size: 0.75rem;
+      font-weight: 600;
+      border: 1px solid rgba(16, 185, 129, 0.4);
+      background: rgba(16, 185, 129, 0.12);
+      color: var(--neon-green);
+      white-space: nowrap;
+    }
+
+    .ws-badge.offline {
+      border-color: rgba(244, 63, 94, 0.4);
+      background: rgba(244, 63, 94, 0.12);
+      color: var(--neon-danger);
+    }
+
+    .icon-btn {
+      display: inline-flex;
+      align-items: center;
+      justify-content: center;
+      gap: 0.35rem;
+      background: var(--bg-panel-elevated);
+      border: 1px solid var(--border-color);
+      color: var(--text-main);
+      padding: 0.45rem 0.65rem;
+      border-radius: 0.55rem;
+      cursor: pointer;
+      font-weight: 600;
+      font-size: 0.8rem;
+      transition: all 0.18s ease;
+    }
+
+    .icon-btn:hover {
+      border-color: var(--border-strong);
+      background: var(--bg-card-hover);
+      transform: translateY(-1px);
+    }
+
+    .icon-btn[aria-expanded="true"] {
+      border-color: var(--neon-cyan);
+      box-shadow: 0 0 10px rgba(0, 242, 254, 0.2);
+    }
+
+    .session-controls {
+      display: flex;
+      align-items: center;
+      gap: 0.45rem;
+      flex-wrap: wrap;
+    }
+
+    .field-inline {
+      display: flex;
+      align-items: center;
+      gap: 0.35rem;
+    }
+
+    .field-inline label {
+      font-size: 0.75rem;
+      color: var(--text-secondary);
+      font-weight: 600;
+      white-space: nowrap;
+    }
+
+    .input-control,
+    .select-control {
+      background: var(--bg-input);
+      border: 1px solid var(--border-color);
+      color: var(--text-main);
+      padding: 0.42rem 0.65rem;
+      border-radius: 0.5rem;
+      font-size: 0.82rem;
+      width: 100%;
+      transition: border-color 0.2s ease;
+    }
+
+    .input-control:focus,
+    .select-control:focus {
+      border-color: var(--neon-cyan);
+    }
+
+    .btn-primary {
+      background: linear-gradient(135deg, var(--neon-blue), var(--neon-purple));
+      color: #ffffff;
+      border: none;
+      padding: 0.48rem 0.85rem;
+      border-radius: 0.55rem;
+      font-weight: 600;
+      font-size: 0.82rem;
+      cursor: pointer;
+      transition: opacity 0.2s ease, transform 0.15s ease;
+      white-space: nowrap;
+    }
+
+    .btn-primary:hover {
+      opacity: 0.94;
+      transform: translateY(-1px);
+    }
+
+    .btn-success {
+      background: linear-gradient(135deg, #059669, #10b981);
+      color: #ffffff;
+      border: none;
+      padding: 0.5rem 0.85rem;
+      border-radius: 0.55rem;
+      font-weight: 700;
+      font-size: 0.82rem;
+      cursor: pointer;
+      width: 100%;
+    }
+
+    /* =========================================================
+       LAYOUT WORKSPACE (MOBILE-FIRST CON DRAWERS)
+       ========================================================= */
+    .workspace {
+      position: relative;
+      display: flex;
+      flex: 1;
+      min-height: 0;
+      width: 100%;
+      overflow: hidden;
+    }
+
+    /* Fondo semitransparente para cerrar paneles al tocar fuera en móvil */
+    .drawer-backdrop {
+      position: fixed;
+      inset: 0;
+      background: rgba(2, 6, 23, 0.72);
+      backdrop-filter: blur(3px);
+      z-index: 45;
+      opacity: 0;
+      pointer-events: none;
+      transition: opacity 0.25s ease;
+    }
+
+    .drawer-backdrop.active {
+      opacity: 1;
+      pointer-events: auto;
+    }
+
+    /* PANELES LATERALES (Móvil: Drawers flotantes | Escritorio: Columnas colapsables) */
+    .side-panel {
+      position: fixed;
+      top: 0;
+      bottom: 0;
+      width: min(88vw, 340px);
+      background: var(--bg-panel);
+      display: flex;
+      flex-direction: column;
+      z-index: 50;
+      box-shadow: var(--shadow-panel);
+      transition: transform 0.28s cubic-bezier(0.16, 1, 0.3, 1);
+      overflow: hidden;
+    }
+
+    .side-panel.left {
+      left: 0;
+      border-right: 1px solid var(--border-color);
+      transform: translateX(-102%);
+    }
+
+    .side-panel.right {
+      right: 0;
+      border-left: 1px solid var(--border-color);
+      transform: translateX(102%);
+    }
+
+    .side-panel.open {
+      transform: translateX(0);
+    }
+
+    .panel-header {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      padding: 0.75rem 0.9rem;
+      background: var(--bg-panel-elevated);
+      border-bottom: 1px solid var(--border-color);
+      font-weight: 700;
+      font-size: 0.9rem;
+    }
+
+    .panel-body {
+      flex: 1;
+      overflow-y: auto;
+      padding: 0.75rem;
+      display: flex;
+      flex-direction: column;
+      gap: 0.85rem;
+    }
+
+    .section-card {
+      background: var(--bg-panel-elevated);
+      border: 1px solid var(--border-color);
+      border-radius: 0.75rem;
+      padding: 0.75rem;
+      display: flex;
+      flex-direction: column;
+      gap: 0.55rem;
+    }
+
+    .section-title {
+      font-size: 0.72rem;
+      font-weight: 800;
+      text-transform: uppercase;
+      letter-spacing: 0.06em;
+      color: var(--neon-cyan);
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+    }
+
+    /* Selector de miembros por nombre (chips accesibles sin IDs) */
+    .members-checklist {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 0.35rem;
+      max-height: 115px;
+      overflow-y: auto;
+      padding: 0.35rem;
+      background: var(--bg-input);
+      border: 1px solid var(--border-color);
+      border-radius: 0.5rem;
+    }
+
+    .member-chip {
+      display: inline-flex;
+      align-items: center;
+      gap: 0.3rem;
+      padding: 0.22rem 0.5rem;
+      border-radius: 999px;
+      font-size: 0.74rem;
+      background: var(--bg-card);
+      border: 1px solid var(--border-color);
+      cursor: pointer;
+      user-select: none;
+      transition: all 0.15s ease;
+    }
+
+    .member-chip input {
+      accent-color: var(--neon-cyan);
+    }
+
+    .member-chip:has(input:checked) {
+      border-color: var(--neon-cyan);
+      background: rgba(0, 242, 254, 0.14);
+      font-weight: 600;
+    }
+
+    /* Lista de conversaciones */
+    .conv-list {
+      display: flex;
+      flex-direction: column;
+      gap: 0.45rem;
+    }
+
+    .conv-item {
+      width: 100%;
+      text-align: left;
+      background: var(--bg-card);
+      border: 1px solid var(--border-color);
+      border-radius: 0.65rem;
+      padding: 0.65rem 0.75rem;
+      cursor: pointer;
+      transition: all 0.18s ease;
+      display: flex;
+      flex-direction: column;
+      gap: 0.25rem;
+    }
+
+    .conv-item:hover {
+      background: var(--bg-card-hover);
+      border-color: var(--border-strong);
+    }
+
+    .conv-item.active {
+      border-color: var(--neon-cyan);
+      box-shadow: 0 0 14px rgba(0, 242, 254, 0.18);
+      background: var(--bg-card-hover);
+    }
+
+    .conv-item-top {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      gap: 0.4rem;
+    }
+
+    .conv-name {
+      font-weight: 700;
+      font-size: 0.86rem;
+      color: var(--text-main);
+    }
+
+    .conv-tag {
+      font-size: 0.68rem;
+      font-weight: 700;
+      padding: 0.1rem 0.45rem;
+      border-radius: 999px;
+      text-transform: uppercase;
+      background: rgba(59, 130, 246, 0.18);
+      color: var(--neon-cyan);
+    }
+
+    .conv-preview {
+      font-size: 0.76rem;
+      color: var(--text-secondary);
+      white-space: nowrap;
+      overflow: hidden;
+      text-overflow: ellipsis;
+    }
+
+    /* =========================================================
+       PANEL CENTRAL DE CHAT
+       ========================================================= */
+    .chat-main {
+      flex: 1;
+      display: flex;
+      flex-direction: column;
+      min-width: 0;
+      background: var(--bg-chat-canvas);
+    }
+
+    .chat-header {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      padding: 0.75rem 1rem;
+      background: var(--bg-panel);
+      border-bottom: 1px solid var(--border-color);
+      gap: 0.5rem;
+    }
+
+    .chat-title-group {
+      display: flex;
+      flex-direction: column;
+      min-width: 0;
+    }
+
+    .chat-title {
+      font-weight: 800;
+      font-size: 0.98rem;
+      white-space: nowrap;
+      overflow: hidden;
+      text-overflow: ellipsis;
+    }
+
+    .chat-subtitle {
+      font-size: 0.74rem;
+      color: var(--text-secondary);
+    }
+
+    .messages-viewport {
+      flex: 1;
+      overflow-y: auto;
+      padding: 1rem;
+      display: flex;
+      flex-direction: column;
+      gap: 0.65rem;
+    }
+
+    .empty-state {
+      margin: auto;
+      text-align: center;
+      max-width: 340px;
+      color: var(--text-secondary);
+      padding: 1.5rem;
+      border: 1px dashed var(--border-color);
+      border-radius: 1rem;
+      background: var(--bg-panel-elevated);
+    }
+
+    .msg-row {
+      display: flex;
+      flex-direction: column;
+      max-width: min(82%, 520px);
+      gap: 0.2rem;
+    }
+
+    .msg-row.own {
+      align-self: flex-end;
+      align-items: flex-end;
+    }
+
+    .msg-row.other {
+      align-self: flex-start;
+      align-items: flex-start;
+    }
+
+    .msg-author {
+      font-size: 0.72rem;
+      font-weight: 700;
+      color: var(--neon-cyan);
+      padding: 0 0.25rem;
+    }
+
+    .msg-bubble {
+      padding: 0.6rem 0.85rem;
+      border-radius: 0.9rem;
+      font-size: 0.86rem;
+      word-break: break-word;
+      box-shadow: 0 4px 12px rgba(0, 0, 0, 0.15);
+    }
+
+    .msg-row.own .msg-bubble {
+      background: var(--msg-own-bg);
+      color: var(--msg-own-text);
+      border-bottom-right-radius: 0.2rem;
+    }
+
+    .msg-row.other .msg-bubble {
+      background: var(--msg-other-bg);
+      color: var(--msg-other-text);
+      border: 1px solid var(--border-color);
+      border-bottom-left-radius: 0.2rem;
+    }
+
+    .msg-bubble.deleted {
+      font-style: italic;
+      opacity: 0.65;
+    }
+
+    .msg-meta {
+      display: flex;
+      align-items: center;
+      gap: 0.5rem;
+      font-size: 0.68rem;
+      color: var(--text-muted);
+      padding: 0 0.2rem;
+    }
+
+    .btn-delete-msg {
+      background: none;
+      border: none;
+      color: var(--neon-danger);
+      font-size: 0.68rem;
+      font-weight: 600;
+      cursor: pointer;
+      text-decoration: underline;
+    }
+
+    .chat-composer {
+      display: flex;
+      align-items: center;
+      gap: 0.55rem;
+      padding: 0.75rem 1rem;
+      background: var(--bg-panel);
+      border-top: 1px solid var(--border-color);
+    }
+
+    /* =========================================================
+       NOTIFICACIONES Y MONITOR
+       ========================================================= */
+    .notif-list {
+      display: flex;
+      flex-direction: column;
+      gap: 0.5rem;
+    }
+
+    .notif-card {
+      background: var(--bg-card);
+      border: 1px solid var(--border-color);
+      border-left: 4px solid var(--neon-green);
+      border-radius: 0.6rem;
+      padding: 0.6rem 0.75rem;
+      display: flex;
+      flex-direction: column;
+      gap: 0.25rem;
+    }
+
+    .notif-card.msg-type {
+      border-left-color: var(--neon-purple);
+    }
+
+    .notif-header {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      font-size: 0.74rem;
+      font-weight: 700;
+      color: var(--neon-cyan);
+    }
+
+    .notif-text {
+      font-size: 0.82rem;
+      color: var(--text-main);
+    }
+
+    .notif-date {
+      font-size: 0.68rem;
+      color: var(--text-muted);
+    }
+
+    .monitor-log {
+      background: var(--bg-input);
+      border: 1px solid var(--border-color);
+      border-radius: 0.5rem;
+      padding: 0.55rem;
+      font-family: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, monospace;
+      font-size: 0.72rem;
+      color: var(--neon-cyan);
+      max-height: 170px;
+      overflow-y: auto;
+      white-space: pre-wrap;
+      word-break: break-word;
+    }
+
+    /* =========================================================
+       ADAPTACIÓN TABLET Y ESCRITORIO (>= 1024px)
+       ========================================================= */
+    @media (min-width: 1024px) {
+      .drawer-backdrop {
+        display: none !important;
       }
 
-      * {
-        box-sizing: border-box;
-        margin: 0;
-        padding: 0;
-        font-family:
-          "Segoe UI",
-          system-ui,
-          -apple-system,
-          sans-serif;
+      .side-panel {
+        position: relative;
+        width: 325px;
+        transform: none !important;
+        box-shadow: none;
+        z-index: 10;
+        transition: width 0.25s ease, opacity 0.2s ease;
       }
 
-      body {
-        background-color: var(--bg-dark);
-        color: var(--text-main);
-        height: 100vh;
-        display: flex;
-        flex-direction: column;
-        overflow: hidden;
+      .side-panel.desktop-hidden {
+        width: 0 !important;
+        min-width: 0 !important;
+        border: none !important;
+        opacity: 0;
+        pointer-events: none;
       }
 
-      header {
-        background-color: var(--bg-panel);
-        border-bottom: 1px solid var(--border);
-        padding: 10px 18px;
-        display: flex;
-        flex-wrap: wrap;
-        align-items: center;
-        justify-content: space-between;
-        gap: 12px;
+      .mobile-close-btn {
+        display: none;
       }
+    }
 
-      .brand {
-        display: flex;
-        align-items: center;
-        gap: 10px;
+    @media (max-width: 640px) {
+      .hide-mobile {
+        display: none;
       }
-
-      .brand h1 {
-        font-size: 1.1rem;
-        font-weight: 700;
-        color: #60a5fa;
+      .topbar {
+        padding: 0.5rem 0.65rem;
       }
-
-      .badge {
-        padding: 3px 8px;
-        border-radius: 999px;
-        font-size: 0.75rem;
-        font-weight: 600;
-      }
-
-      .badge-ws-on {
-        background: rgba(16, 185, 129, 0.2);
-        color: #34d399;
-        border: 1px solid #10b981;
-      }
-      .badge-ws-off {
-        background: rgba(239, 68, 68, 0.2);
-        color: #f87171;
-        border: 1px solid #ef4444;
-      }
-
-      .config-bar {
-        display: flex;
-        flex-wrap: wrap;
-        align-items: center;
-        gap: 8px;
-      }
-
-      input,
-      select,
-      button {
-        background-color: var(--bg-dark);
-        color: var(--text-main);
-        border: 1px solid var(--border);
-        border-radius: 6px;
-        padding: 6px 10px;
-        font-size: 0.85rem;
-      }
-
-      input:focus,
-      select:focus {
-        outline: none;
-        border-color: var(--primary);
-      }
-
-      button {
-        background-color: var(--primary);
-        border: none;
-        cursor: pointer;
-        font-weight: 600;
-        transition: background 0.15s;
-      }
-
-      button:hover {
-        background-color: var(--primary-hover);
-      }
-      button.btn-secondary {
-        background-color: var(--bg-card);
-        border: 1px solid var(--border);
-      }
-      button.btn-secondary:hover {
-        background-color: #475569;
-      }
-      button.btn-success {
-        background-color: var(--success);
-      }
-      button.btn-warning {
-        background-color: var(--warning);
-        color: #000;
-      }
-      button.btn-danger {
-        background-color: var(--danger);
-      }
-
-      .main-grid {
-        display: grid;
-        grid-template-columns: 320px 1fr 340px;
-        flex: 1;
-        overflow: hidden;
-      }
-
-      .panel {
-        background-color: var(--bg-panel);
-        border-right: 1px solid var(--border);
-        display: flex;
-        flex-direction: column;
-        overflow: hidden;
-      }
-
-      .panel:last-child {
-        border-right: none;
-        border-left: 1px solid var(--border);
-      }
-
-      .panel-header {
-        padding: 12px 14px;
-        border-bottom: 1px solid var(--border);
-        display: flex;
-        justify-content: space-between;
-        align-items: center;
-        font-weight: 600;
-        font-size: 0.92rem;
-        background: rgba(15, 23, 42, 0.4);
-      }
-
-      .panel-body {
-        padding: 12px;
-        overflow-y: auto;
-        flex: 1;
-        display: flex;
-        flex-direction: column;
-        gap: 12px;
-      }
-
-      .card-box {
-        background-color: rgba(15, 23, 42, 0.55);
-        border: 1px solid var(--border);
-        border-radius: 8px;
-        padding: 10px;
-        display: flex;
-        flex-direction: column;
-        gap: 8px;
-      }
-
-      .card-box h3 {
-        font-size: 0.8rem;
-        color: var(--text-muted);
-        text-transform: uppercase;
-        letter-spacing: 0.5px;
-      }
-
-      .row {
-        display: flex;
-        gap: 6px;
-        align-items: center;
-      }
-
-      .row > * {
-        flex: 1;
-      }
-
-      .conv-list {
-        display: flex;
-        flex-direction: column;
-        gap: 6px;
-      }
-
-      .conv-item {
-        padding: 10px;
-        border-radius: 8px;
-        background-color: var(--bg-card);
-        border: 1px solid transparent;
-        cursor: pointer;
-        transition: all 0.15s;
-      }
-
-      .conv-item:hover,
-      .conv-item.active {
-        border-color: var(--primary);
-        background-color: rgba(59, 130, 246, 0.15);
-      }
-
-      .conv-title {
-        font-weight: 600;
-        font-size: 0.88rem;
-        display: flex;
-        justify-content: space-between;
-        align-items: center;
-      }
-
-      .conv-sub {
-        font-size: 0.78rem;
-        color: var(--text-muted);
-        margin-top: 4px;
-        white-space: nowrap;
-        overflow: hidden;
-        text-overflow: ellipsis;
-      }
-
-      .chat-window {
-        display: flex;
-        flex-direction: column;
-        background-color: var(--bg-dark);
-        overflow: hidden;
-      }
-
-      .chat-header {
-        padding: 12px 16px;
-        background-color: var(--bg-panel);
-        border-bottom: 1px solid var(--border);
-        display: flex;
-        justify-content: space-between;
-        align-items: center;
-      }
-
-      .messages-container {
-        flex: 1;
-        padding: 16px;
-        overflow-y: auto;
-        display: flex;
-        flex-direction: column;
-        gap: 10px;
-      }
-
-      .msg-bubble {
-        max-width: 76%;
-        padding: 10px 12px;
-        border-radius: 10px;
-        background-color: var(--bg-panel);
-        border: 1px solid var(--border);
-        align-self: flex-start;
-        display: flex;
-        flex-direction: column;
-        gap: 5px;
-      }
-
-      .msg-bubble.mine {
-        align-self: flex-end;
-        background-color: rgba(37, 99, 235, 0.25);
-        border-color: var(--primary);
-      }
-
-      .msg-bubble.deleted {
-        opacity: 0.65;
-        font-style: italic;
-        border-style: dashed;
-      }
-
-      .msg-meta {
-        font-size: 0.73rem;
-        color: var(--text-muted);
-        display: flex;
-        justify-content: space-between;
-        gap: 12px;
-      }
-
-      .msg-text {
-        font-size: 0.92rem;
-        line-height: 1.35;
-        word-break: break-word;
-      }
-
-      .msg-actions {
-        display: flex;
-        gap: 6px;
-        justify-content: flex-end;
-        margin-top: 2px;
-      }
-
-      .msg-actions button {
-        padding: 2px 7px;
-        font-size: 0.72rem;
-      }
-
-      .chat-input-bar {
-        padding: 12px 16px;
-        background-color: var(--bg-panel);
-        border-top: 1px solid var(--border);
-        display: flex;
-        gap: 8px;
-      }
-
-      .chat-input-bar input {
-        flex: 1;
-        padding: 10px;
-      }
-
-      .notif-item {
-        padding: 9px;
-        border-radius: 6px;
-        background-color: var(--bg-card);
-        border-left: 3px solid var(--warning);
-        font-size: 0.82rem;
-      }
-
-      .notif-item.match {
-        border-left-color: var(--success);
-      }
-
-      .http-log {
-        font-family: Consolas, monospace;
-        font-size: 0.75rem;
-        background-color: #020617;
-        color: #38bdf8;
-        padding: 10px;
-        border-radius: 6px;
-        border: 1px solid #1e293b;
-        max-height: 210px;
-        overflow-y: auto;
-        white-space: pre-wrap;
-      }
-    </style>
-  </head>
-  <body>
-    <header>
-      <div class="brand">
-        <h1>💬 StudyMatch | Chat & Notificaciones</h1>
-        <span id="wsStatusBadge" class="badge badge-ws-off"
-          >WS: Desconectado</span
+    }
+  </style>
+</head>
+<body>
+  <div class="app-shell">
+    <!-- BARRA DE NAVEGACIÓN SUPERIOR -->
+    <header class="topbar" role="banner">
+      <div class="topbar-left">
+        <button
+          type="button"
+          id="btn-toggle-left"
+          class="icon-btn"
+          aria-controls="panel-conversaciones"
+          aria-expanded="true"
+          onclick="toggleSidePanel('left')"
+          title="Mostrar u ocultar panel de conversaciones"
         >
+          ☰ <span>Conversaciones</span>
+        </button>
+
+        <div class="brand" aria-label="StudyMatch Noche Neón">
+          <span>💬 StudyMatch</span>
+        </div>
+
+        <div id="ws-status" class="ws-badge offline" role="status" aria-live="polite">
+          Conectando...
+        </div>
       </div>
 
-      <div class="config-bar">
-        <label style="font-size: 0.8rem; color: var(--text-muted)"
-          >API Backend:</label
-        >
-        <input type="text" id="baseUrlInput" style="width: 240px" />
+      <div class="topbar-right">
+        <div class="session-controls">
+          <div class="field-inline hide-mobile">
+            <label for="api-url">Servidor:</label>
+            <input
+              type="url"
+              id="api-url"
+              class="input-control"
+              style="width: 185px;"
+              aria-label="URL del servidor backend"
+            />
+          </div>
 
-        <label
-          style="font-size: 0.8rem; color: var(--text-muted); margin-left: 6px"
-          >Sesión de Estudiante:</label
+          <div class="field-inline">
+            <label for="session-user">Estudiante:</label>
+            <select
+              id="session-user"
+              class="select-control"
+              style="min-width: 190px;"
+              aria-label="Seleccionar estudiante activo"
+              onchange="cambiarSesionEstudiante()"
+            ></select>
+          </div>
+
+          <button
+            type="button"
+            class="btn-primary"
+            onclick="sincronizarTodo()"
+            aria-label="Sincronizar datos con el servidor"
+          >
+            🔄 Sincronizar
+          </button>
+        </div>
+
+        <button
+          type="button"
+          id="btn-theme"
+          class="icon-btn"
+          onclick="alternarTema()"
+          aria-label="Cambiar entre modo noche neón y modo claro"
+          title="Cambiar tema visual"
         >
-        <select id="activeUserSelect" onchange="cambiarSesionUsuario()">
-          <option value="">Cargando estudiantes de Neon...</option>
-        </select>
-        <button class="btn-success" onclick="inicializarFrontend()">
-          🔄 Sincronizar
+          🌙 <span id="theme-label" class="hide-mobile">Noche Neón</span>
+        </button>
+
+        <button
+          type="button"
+          id="btn-toggle-right"
+          class="icon-btn"
+          aria-controls="panel-notificaciones"
+          aria-expanded="true"
+          onclick="toggleSidePanel('right')"
+          title="Mostrar u ocultar panel de notificaciones"
+        >
+          🔔 <span class="hide-mobile">Alertas</span>
         </button>
       </div>
     </header>
 
-    <div class="main-grid">
-      <!-- COLUMNA 1: CREACIÓN Y LISTADO DE CHATS -->
-      <div class="panel">
+    <!-- ÁREA DE TRABAJO PRINCIPAL -->
+    <div class="workspace">
+      <div
+        id="drawer-backdrop"
+        class="drawer-backdrop"
+        onclick="cerrarDrawersMovil()"
+        aria-hidden="true"
+      ></div>
+
+      <!-- PANEL IZQUIERDO: CONVERSACIONES Y GRUPOS -->
+      <aside
+        id="panel-conversaciones"
+        class="side-panel left"
+        aria-label="Panel de conversaciones y creación de salas"
+      >
         <div class="panel-header">
-          <span>📂 Mis Conversaciones</span>
-          <button
-            class="btn-secondary"
-            onclick="cargarConversaciones()"
-            style="padding: 3px 8px; font-size: 0.75rem"
-          >
-            Actualizar
-          </button>
-        </div>
-        <div class="panel-body">
-          <div class="card-box">
-            <h3>➕ Iniciar Chat Individual</h3>
-            <div class="row">
-              <select id="destUserSelect">
-                <option value="">Selecciona un compañero...</option>
-              </select>
-            </div>
-            <div class="row">
-              <select id="indOrigen">
-                <option value="directo">Directo (BD Producción)</option>
-                <option value="match">Validar con Servicio Matching</option>
-              </select>
-              <button onclick="crearConversacionIndividual()">
-                Abrir Chat
-              </button>
-            </div>
-          </div>
-
-          <div class="card-box">
-            <h3>👥 Crear Grupo de Estudio</h3>
-            <div class="row">
-              <input
-                type="number"
-                id="grpId"
-                placeholder="ID Grupo"
-                min="1"
-                style="max-width: 85px"
-              />
-              <input
-                type="text"
-                id="grpNombre"
-                placeholder="Nombre del grupo de estudio"
-              />
-            </div>
-            <div class="row">
-              <input
-                type="text"
-                id="grpMiembros"
-                placeholder="IDs de miembros (ej: 1, 2, 3)"
-              />
-              <button onclick="crearConversacionGrupal()">Crear Grupo</button>
-            </div>
-          </div>
-
-          <div class="card-box" style="flex: 1; overflow-y: auto">
-            <h3>Salas Activas en Base de Datos</h3>
-            <div id="convListContainer" class="conv-list">
-              <p style="font-size: 0.8rem; color: var(--text-muted)">
-                Cargando conversaciones...
-              </p>
-            </div>
-          </div>
-        </div>
-      </div>
-
-      <!-- COLUMNA 2: VENTANA DE CHAT -->
-      <div class="chat-window">
-        <div class="chat-header">
-          <div>
-            <strong id="activeChatTitle">Selecciona una conversación</strong>
-            <span
-              id="activeChatSubtitle"
-              style="
-                font-size: 0.8rem;
-                color: var(--text-muted);
-                margin-left: 8px;
-              "
-            ></span>
-          </div>
-          <div style="display: flex; gap: 8px">
-            <button class="btn-secondary" onclick="cargarMensajes()">
-              🔄 Recargar
+          <span>📁 Mis Conversaciones</span>
+          <div style="display: flex; gap: 0.35rem;">
+            <button
+              type="button"
+              class="icon-btn"
+              onclick="cargarConversaciones()"
+              aria-label="Actualizar lista de conversaciones"
+            >
+              Actualizar
             </button>
             <button
-              id="btnSalirGrupo"
-              class="btn-danger"
-              onclick="salirDeGrupo()"
-              style="display: none"
+              type="button"
+              class="icon-btn mobile-close-btn"
+              onclick="cerrarDrawersMovil()"
+              aria-label="Cerrar panel de conversaciones"
             >
-              🚪 Salir del Grupo
+              ✕
             </button>
           </div>
         </div>
 
-        <div id="messagesContainer" class="messages-container">
-          <p
-            style="
-              color: var(--text-muted);
-              text-align: center;
-              margin-top: 40px;
-            "
-          >
-            Elige un compañero o un grupo de estudio en el panel izquierdo para
-            conversar en tiempo real.
-          </p>
-        </div>
+        <div class="panel-body">
+          <!-- Iniciar Chat Individual -->
+          <section class="section-card" aria-labelledby="titulo-chat-ind">
+            <h2 id="titulo-chat-ind" class="section-title">➕ Iniciar Chat Individual</h2>
+            <label for="peer-user" class="chat-subtitle">Compañero de estudio:</label>
+            <select id="peer-user" class="select-control" aria-label="Elegir compañero de estudio"></select>
 
-        <div class="chat-input-bar">
-          <input
-            type="text"
-            id="mensajeInput"
-            maxlength="150"
-            placeholder="Escribe un mensaje (máx. 150 caracteres)..."
-            onkeydown="if (event.key === 'Enter') enviarMensaje();"
-          />
-          <button onclick="enviarMensaje()">Enviar Mensaje</button>
-        </div>
-      </div>
+            <label for="chat-origin" class="chat-subtitle">Modo de apertura:</label>
+            <select id="chat-origin" class="select-control" aria-label="Modo de validación de la conversación">
+              <option value="directo">Directo (BD Producción)</option>
+              <option value="match">Validar con Servicio Matching</option>
+            </select>
 
-      <!-- COLUMNA 3: NOTIFICACIONES Y MONITOR DE RED -->
-      <div class="panel">
-        <div class="panel-header">
-          <span>🔔 Centro de Notificaciones</span>
+            <button type="button" class="btn-primary" onclick="crearChatIndividual()">
+              Abrir Chat
+            </button>
+          </section>
+
+          <!-- Crear Grupo de Estudio (Seleccionando Nombres, sin IDs) -->
+          <section class="section-card" aria-labelledby="titulo-grupo">
+            <h2 id="titulo-grupo" class="section-title">👥 Crear Grupo de Estudio</h2>
+            <input
+              type="text"
+              id="group-name"
+              class="input-control"
+              placeholder="Nombre del grupo de estudio"
+              aria-label="Nombre del grupo de estudio"
+            />
+
+            <label for="group-materia" class="chat-subtitle">Materia asociada:</label>
+            <select id="group-materia" class="select-control" aria-label="Seleccionar materia del grupo"></select>
+
+            <span class="chat-subtitle">Integrantes del grupo:</span>
+            <div id="group-members-list" class="members-checklist" role="group" aria-label="Seleccionar integrantes por nombre"></div>
+
+            <button type="button" class="btn-primary" onclick="crearGrupoEstudio()">
+              Crear Grupo
+            </button>
+          </section>
+
+          <!-- Salas Activas -->
+          <section class="section-card" style="flex: 1;" aria-labelledby="titulo-salas">
+            <h2 id="titulo-salas" class="section-title">Salas Activas</h2>
+            <div id="conv-list" class="conv-list" role="list"></div>
+          </section>
+        </div>
+      </aside>
+
+      <!-- PANEL CENTRAL: SALA DE CHAT ACTIVA -->
+      <main class="chat-main" aria-label="Ventana principal de mensajes">
+        <div class="chat-header">
+          <div class="chat-title-group">
+            <h1 id="active-chat-title" class="chat-title">Selecciona una conversación</h1>
+            <span id="active-chat-subtitle" class="chat-subtitle">
+              Elige un compañero o grupo de estudio en el panel izquierdo para conversar en tiempo real.
+            </span>
+          </div>
           <button
-            class="btn-secondary"
-            onclick="cargarNotificaciones()"
-            style="padding: 3px 8px; font-size: 0.75rem"
+            type="button"
+            class="icon-btn"
+            onclick="recargarMensajesActivos()"
+            aria-label="Recargar mensajes de la conversación actual"
           >
-            Refrescar
+            🔄 Recargar
           </button>
         </div>
+
+        <div id="messages-viewport" class="messages-viewport" role="log" aria-live="polite">
+          <div class="empty-state">
+            Elige un compañero o un grupo de estudio en el panel izquierdo para conversar en tiempo real.
+          </div>
+        </div>
+
+        <form class="chat-composer" onsubmit="enviarMensaje(event)">
+          <input
+            type="text"
+            id="msg-input"
+            class="input-control"
+            placeholder="Escribe un mensaje (máx. 150 caracteres)..."
+            maxlength="150"
+            aria-label="Escribir mensaje"
+            disabled
+          />
+          <button type="submit" id="btn-send" class="btn-primary" disabled>
+            Enviar Mensaje
+          </button>
+        </form>
+      </main>
+
+      <!-- PANEL DERECHO: CENTRO DE NOTIFICACIONES Y MONITOR -->
+      <aside
+        id="panel-notificaciones"
+        class="side-panel right"
+        aria-label="Centro de notificaciones y eventos en tiempo real"
+      >
+        <div class="panel-header">
+          <span>🔔 Centro de Notificaciones</span>
+          <div style="display: flex; gap: 0.35rem;">
+            <button
+              type="button"
+              class="icon-btn"
+              onclick="cargarNotificaciones()"
+              aria-label="Refrescar alertas"
+            >
+              Refrescar
+            </button>
+            <button
+              type="button"
+              class="icon-btn mobile-close-btn"
+              onclick="cerrarDrawersMovil()"
+              aria-label="Cerrar panel de notificaciones"
+            >
+              ✕
+            </button>
+          </div>
+        </div>
+
         <div class="panel-body">
-          <div class="card-box">
-            <h3>✨ Emitir Evento de Match</h3>
-            <div class="row">
+          <!-- Emitir Evento de Match por Nombre -->
+          <section class="section-card" aria-labelledby="titulo-simular-match">
+            <h2 id="titulo-simular-match" class="section-title">✨ Emitir Evento de Match</h2>
+            <div style="display: flex; gap: 0.4rem;">
               <select
-                id="notifTargetSelect"
-                title="Estudiante que recibe la alerta"
+                id="notif-target-user"
+                class="select-control"
+                aria-label="Estudiante con quien simular nuevo match"
               ></select>
               <input
                 type="number"
-                id="notifPorcentaje"
-                placeholder="% Match"
+                id="notif-percent"
+                class="input-control"
+                style="width: 78px;"
                 value="95"
                 min="1"
                 max="100"
-                style="max-width: 80px"
+                aria-label="Porcentaje de compatibilidad"
               />
             </div>
-            <button class="btn-success" onclick="crearNotificacionMatch()">
+            <button type="button" class="btn-success" onclick="simularNuevoMatch()">
               Simular Nuevo Match
             </button>
-          </div>
+          </section>
 
-          <div
-            class="card-box"
-            style="flex: 1; overflow-y: auto; min-height: 140px"
-          >
-            <h3>Mis Alertas Recibidas</h3>
-            <div id="notifListContainer" class="conv-list">
-              <p style="font-size: 0.8rem; color: var(--text-muted)">
-                Sin notificaciones.
-              </p>
-            </div>
-          </div>
+          <!-- Mis Alertas Recibidas -->
+          <section class="section-card" style="flex: 1;" aria-labelledby="titulo-alertas">
+            <h2 id="titulo-alertas" class="section-title">Mis Alertas Recibidas</h2>
+            <div id="notif-list" class="notif-list" role="list"></div>
+          </section>
 
-          <div class="card-box">
-            <div class="row" style="justify-content: space-between">
-              <h3>📡 Monitor REST / WebSocket</h3>
+          <!-- Monitor Técnico REST / WebSocket -->
+          <section class="section-card" aria-labelledby="titulo-monitor">
+            <div class="section-title">
+              <span id="titulo-monitor">📡 Monitor REST / WebSocket</span>
               <button
-                class="btn-secondary"
-                onclick="limpiarLog()"
-                style="max-width: 65px; padding: 2px 6px; font-size: 0.72rem"
+                type="button"
+                class="icon-btn"
+                style="padding: 0.15rem 0.45rem; font-size: 0.7rem;"
+                onclick="limpiarMonitor()"
               >
                 Limpiar
               </button>
             </div>
-            <div id="httpLogBox" class="http-log">
-              Conectando con el microservicio...
-            </div>
-          </div>
+            <div id="monitor-log" class="monitor-log" aria-live="off">Listo para registrar eventos...</div>
+          </section>
         </div>
-      </div>
+      </aside>
     </div>
+  </div>
 
-    <script>
-      let usuariosMap = {};
-      let currentChat = {
-        id: null,
-        tipo: null,
-        receptorId: null,
-        grupoId: null,
-        titulo: "",
-      };
-      let wsConnection = null;
+  <script>
+    // =========================================================
+    // ESTADO GLOBAL Y MAPA DE NOMBRES (CERO IDs EN LA INTERFAZ)
+    // =========================================================
+    let USUARIOS_CACHE = [];
+    let MATERIAS_CACHE = [];
+    let MAPA_NOMBRES = {};
+    let USUARIO_ACTIVO_ID = null;
+    let CONVERSACION_ACTIVA = null; // { conversacion_id, tipo, nombre, grupo_id }
+    let WS_CLIENT = null;
 
-      // Detectar automáticamente el servidor (Railway, DevTunnel o Localhost)
-      function detectarUrlBase() {
-        const input = document.getElementById("baseUrlInput");
-        if (!input.value) {
-          if (window.location.protocol.startsWith("http")) {
-            input.value = window.location.origin;
-          } else {
-            input.value = "http://localhost:8000";
-          }
-        }
-        return input.value.trim().replace(/\/+$/, "");
+    // Inicializar URL del backend automáticamente (Localhost o Railway)
+    const inputApiUrl = document.getElementById("api-url");
+    inputApiUrl.value = window.location.origin;
+
+    function getBaseUrl() {
+      return (inputApiUrl.value || window.location.origin).replace(/\/+$/, "");
+    }
+
+    function obtenerNombreEstudiante(id) {
+      if (!id) return "Estudiante";
+      return MAPA_NOMBRES[Number(id)] || "Estudiante de StudyMatch";
+    }
+
+    // Reemplaza cualquier rastro antiguo de "estudiante 12" o "(#25)" por el nombre real
+    function embellecerTextoSinIds(texto) {
+      if (!texto) return "";
+      let limpio = String(texto);
+      limpio = limpio.replace(/estudiante\s+#?(\d+)/gi, (_, idNum) => obtenerNombreEstudiante(Number(idNum)));
+      limpio = limpio.replace(/\s*\(#\d+\)/g, "");
+      return limpio;
+    }
+
+    function registrarMonitor(titulo, detalle) {
+      const box = document.getElementById("monitor-log");
+      const hora = new Date().toLocaleTimeString("es-CO");
+      const cuerpo = typeof detalle === "string" ? detalle : JSON.stringify(detalle, null, 2);
+      box.textContent = `[${hora}] ${titulo}\n${cuerpo}\n────────────────────────\n` + box.textContent;
+    }
+
+    function limpiarMonitor() {
+      document.getElementById("monitor-log").textContent = "";
+    }
+
+    // =========================================================
+    // GESTIÓN DE TEMA (NOCHE NEÓN / CLARO CON LOCALSTORAGE)
+    // =========================================================
+    function aplicarTemaGuardado() {
+      const guardado = localStorage.getItem("studymatch_theme") || "dark";
+      document.documentElement.setAttribute("data-theme", guardado);
+      actualizarBotonTema(guardado);
+    }
+
+    function alternarTema() {
+      const actual = document.documentElement.getAttribute("data-theme") || "dark";
+      const nuevo = actual === "dark" ? "light" : "dark";
+      document.documentElement.setAttribute("data-theme", nuevo);
+      localStorage.setItem("studymatch_theme", nuevo);
+      actualizarBotonTema(nuevo);
+    }
+
+    function actualizarBotonTema(tema) {
+      const btn = document.getElementById("btn-theme");
+      if (tema === "light") {
+        btn.innerHTML = '☀️ <span id="theme-label" class="hide-mobile">Modo Claro</span>';
+      } else {
+        btn.innerHTML = '🌙 <span id="theme-label" class="hide-mobile">Noche Neón</span>';
       }
+    }
 
-      function getActiveUserId() {
-        return document.getElementById("activeUserSelect").value;
+    // =========================================================
+    // PANELES DESLIZANTES (MÓVIL) Y COLAPSABLES (ESCRITORIO)
+    // =========================================================
+    function esVistaMovil() {
+      return window.innerWidth < 1024;
+    }
+
+    function actualizarBackdropMovil() {
+      const leftOpen = document.getElementById("panel-conversaciones").classList.contains("open");
+      const rightOpen = document.getElementById("panel-notificaciones").classList.contains("open");
+      const backdrop = document.getElementById("drawer-backdrop");
+      if (esVistaMovil() && (leftOpen || rightOpen)) {
+        backdrop.classList.add("active");
+      } else {
+        backdrop.classList.remove("active");
       }
+    }
 
-      function getHeaders() {
-        const headers = {
-          "Content-Type": "application/json",
-          "X-Tunnel-Skip-AntiPhishing-Page": "true",
-        };
-        const uid = getActiveUserId();
-        if (uid !== "") {
-          headers["X-User-Id"] = uid;
-        }
-        return headers;
+    function toggleSidePanel(lado) {
+      const panelId = lado === "left" ? "panel-conversaciones" : "panel-notificaciones";
+      const btnId = lado === "left" ? "btn-toggle-left" : "btn-toggle-right";
+      const otroPanelId = lado === "left" ? "panel-notificaciones" : "panel-conversaciones";
+
+      const panel = document.getElementById(panelId);
+      const btn = document.getElementById(btnId);
+      const otroPanel = document.getElementById(otroPanelId);
+
+      if (esVistaMovil()) {
+        otroPanel.classList.remove("open");
+        const abierto = panel.classList.toggle("open");
+        btn.setAttribute("aria-expanded", String(abierto));
+        actualizarBackdropMovil();
+      } else {
+        const oculto = panel.classList.toggle("desktop-hidden");
+        btn.setAttribute("aria-expanded", String(!oculto));
       }
+    }
 
-      function nombreEstudiante(id) {
-        return usuariosMap[id]
-          ? `${usuariosMap[id].nombre} (#${id})`
-          : `Estudiante #${id}`;
+    function cerrarDrawersMovil() {
+      document.getElementById("panel-conversaciones").classList.remove("open");
+      document.getElementById("panel-notificaciones").classList.remove("open");
+      document.getElementById("btn-toggle-left").setAttribute("aria-expanded", "false");
+      document.getElementById("btn-toggle-right").setAttribute("aria-expanded", "false");
+      actualizarBackdropMovil();
+    }
+
+    // Cerrar drawers con la tecla Escape
+    document.addEventListener("keydown", (ev) => {
+      if (ev.key === "Escape" && esVistaMovil()) {
+        cerrarDrawersMovil();
       }
+    });
 
-      function registrarLog(titulo, status, data) {
-        const box = document.getElementById("httpLogBox");
-        const hora = new Date().toLocaleTimeString();
-        const texto =
-          typeof data === "object"
-            ? JSON.stringify(data, null, 2)
-            : String(data);
-        box.textContent =
-          `[${hora}] ${titulo} (${status})\n${texto}\n` +
-          "─".repeat(36) +
-          "\n" +
-          box.textContent;
-      }
+    // =========================================================
+    // CARGA DE DATOS INICIALES Y RENDERIZADO DE NOMBRES REALES
+    // =========================================================
+    async function sincronizarTodo() {
+      try {
+        const resp = await fetch(`${getBaseUrl()}/api/v1/datos-iniciales`);
+        const data = await resp.json();
+        USUARIOS_CACHE = data.usuarios || [];
+        MATERIAS_CACHE = data.materias || [];
 
-      function limpiarLog() {
-        document.getElementById("httpLogBox").textContent = "";
-      }
-
-      async function inicializarFrontend() {
-        const base = detectarUrlBase();
-        try {
-          const res = await fetch(`${base}/api/v1/datos-iniciales`, {
-            headers: getHeaders(),
-          });
-          const data = await res.json();
-          registrarLog("GET /api/v1/datos-iniciales", res.status, data);
-
-          const selectActivo = document.getElementById("activeUserSelect");
-          const selectDestino = document.getElementById("destUserSelect");
-          const selectNotif = document.getElementById("notifTargetSelect");
-          const seleccionPrevia = selectActivo.value;
-
-          selectActivo.innerHTML = "";
-          selectDestino.innerHTML = "";
-          selectNotif.innerHTML = "";
-          usuariosMap = {};
-
-          const usuarios = data.usuarios_disponibles || [];
-          usuarios.forEach((u) => {
-            usuariosMap[u.usuario_id] = u;
-
-            const opt1 = document.createElement("option");
-            opt1.value = u.usuario_id;
-            opt1.textContent = `${u.nombre} (${u.correo}) [ID: ${u.usuario_id}]`;
-            selectActivo.appendChild(opt1);
-
-            const opt2 = document.createElement("option");
-            opt2.value = u.usuario_id;
-            opt2.textContent = `${u.nombre} [ID: ${u.usuario_id}]`;
-            selectDestino.appendChild(opt2);
-
-            const opt3 = document.createElement("option");
-            opt3.value = u.usuario_id;
-            opt3.textContent = `Para: ${u.nombre} [ID: ${u.usuario_id}]`;
-            selectNotif.appendChild(opt3);
-          });
-
-          // Opción para probar petición sin autenticación (401)
-          const optNoAuth = document.createElement("option");
-          optNoAuth.value = "";
-          optNoAuth.textContent = "🚫 Sin sesión activa (Probar 401)";
-          selectActivo.appendChild(optNoAuth);
-
-          if (seleccionPrevia && usuariosMap[seleccionPrevia]) {
-            selectActivo.value = seleccionPrevia;
-          } else if (usuarios.length > 0) {
-            selectActivo.value = usuarios[0].usuario_id;
-            if (usuarios.length > 1) {
-              selectDestino.value = usuarios[1].usuario_id;
-              selectNotif.value = usuarios[1].usuario_id;
-            }
-          }
-
-          // Autocompletar sugerencia de miembros con los IDs reales de Neon
-          if (usuarios.length >= 2) {
-            document.getElementById("grpMiembros").value = usuarios
-              .map((u) => u.usuario_id)
-              .join(", ");
-          }
-
-          cambiarSesionUsuario();
-        } catch (err) {
-          registrarLog("Error conectando al Backend", "ERR", err.message);
-        }
-      }
-
-      function cambiarSesionUsuario() {
-        conectarWebSocket();
-        cargarConversaciones();
-        cargarNotificaciones();
-        if (currentChat.id) {
-          cargarMensajes();
-        }
-      }
-
-      function conectarWebSocket() {
-        if (wsConnection) {
-          try {
-            wsConnection.close();
-          } catch (e) {}
-        }
-
-        const uid = getActiveUserId();
-        const badge = document.getElementById("wsStatusBadge");
-        if (!uid) {
-          badge.textContent = "WS: Sin Sesión";
-          badge.className = "badge badge-ws-off";
-          return;
-        }
-
-        const base = detectarUrlBase();
-        const wsProtocol = base.startsWith("https://") ? "wss://" : "ws://";
-        const hostPart = base.replace(/^https?:\/\//, "");
-        const wsUrl = `${wsProtocol}${hostPart}/api/v1/chat/ws?usuario_id=${encodeURIComponent(uid)}`;
-
-        badge.textContent = "WS: Conectando...";
-        wsConnection = new WebSocket(wsUrl);
-
-        wsConnection.onopen = () => {
-          badge.textContent = `En línea: ${nombreEstudiante(uid)}`;
-          badge.className = "badge badge-ws-on";
-        };
-
-        wsConnection.onmessage = (event) => {
-          let payload = event.data;
-          try {
-            payload = JSON.parse(event.data);
-          } catch (e) {}
-          registrarLog("⚡ Evento Tiempo Real (WS)", "PUSH", payload);
-          cargarConversaciones();
-          cargarNotificaciones();
-          if (currentChat.id) {
-            cargarMensajes();
-          }
-        };
-
-        wsConnection.onclose = () => {
-          badge.textContent = "WS: Desconectado";
-          badge.className = "badge badge-ws-off";
-        };
-      }
-
-      async function crearConversacionIndividual() {
-        const u1 = Number(getActiveUserId());
-        const u2 = Number(document.getElementById("destUserSelect").value);
-        const origen = document.getElementById("indOrigen").value;
-
-        if (!u1) {
-          alert("Selecciona primero una sesión de estudiante arriba.");
-          return;
-        }
-
-        const res = await fetch(`${detectarUrlBase()}/api/v1/conversaciones`, {
-          method: "POST",
-          headers: getHeaders(),
-          body: JSON.stringify({ usuario_id_1: u1, usuario_id_2: u2, origen }),
+        MAPA_NOMBRES = {};
+        USUARIOS_CACHE.forEach((u) => {
+          const uid = u.usuario_id || u.id;
+          const nombreCompleto = u.nombre_completo || `${u.nombre || ""} ${u.apellido || ""}`.trim();
+          MAPA_NOMBRES[Number(uid)] = nombreCompleto;
         });
-        const data = await res.json();
-        registrarLog("POST /api/v1/conversaciones", res.status, data);
 
-        if (res.ok) {
-          abrirSala({
-            id: u2,
-            tipo: "individual",
-            receptorId: u2,
-            grupoId: null,
-            titulo: `Chat con ${nombreEstudiante(u2)}`,
-          });
-          await cargarConversaciones();
-        }
+        poblarSelectoresPorNombre();
+        await cambiarSesionEstudiante();
+      } catch (err) {
+        registrarMonitor("ERROR SINCRONIZACIÓN", String(err));
+      }
+    }
+
+    function poblarSelectoresPorNombre() {
+      const selSesion = document.getElementById("session-user");
+      const selPeer = document.getElementById("peer-user");
+      const selNotifTarget = document.getElementById("notif-target-user");
+      const checklistGrupo = document.getElementById("group-members-list");
+      const selMateria = document.getElementById("group-materia");
+
+      const previoId = Number(selSesion.value) || (USUARIOS_CACHE[0] && (USUARIOS_CACHE[0].usuario_id || USUARIOS_CACHE[0].id));
+
+      selSesion.innerHTML = "";
+      selPeer.innerHTML = "";
+      selNotifTarget.innerHTML = "";
+      checklistGrupo.innerHTML = "";
+
+      USUARIOS_CACHE.forEach((u) => {
+        const uid = Number(u.usuario_id || u.id);
+        const nombre = MAPA_NOMBRES[uid];
+
+        // 1. Selector de sesión activa (Solo Nombre y Correo, sin mostrar ID)
+        const optSesion = document.createElement("option");
+        optSesion.value = uid;
+        optSesion.textContent = u.correo ? `${nombre} (${u.correo})` : nombre;
+        if (uid === previoId) optSesion.selected = true;
+        selSesion.appendChild(optSesion);
+
+        // 2. Selector de compañero de chat individual (Solo Nombre)
+        const optPeer = document.createElement("option");
+        optPeer.value = uid;
+        optPeer.textContent = nombre;
+        selPeer.appendChild(optPeer);
+
+        // 3. Selector para simular Match (Solo Nombre)
+        const optNotif = document.createElement("option");
+        optNotif.value = uid;
+        optNotif.textContent = `Para: ${nombre}`;
+        selNotifTarget.appendChild(optNotif);
+
+        // 4. Casillas para elegir integrantes de grupo por Nombre
+        const labelChip = document.createElement("label");
+        labelChip.className = "member-chip";
+        labelChip.innerHTML = `<input type="checkbox" value="${uid}" checked /> <span>${nombre}</span>`;
+        checklistGrupo.appendChild(labelChip);
+      });
+
+      // Seleccionar por defecto un compañero distinto al usuario en sesión
+      const opcionesPeer = Array.from(selPeer.options);
+      const distinto = opcionesPeer.find((o) => Number(o.value) !== Number(selSesion.value));
+      if (distinto) {
+        selPeer.value = distinto.value;
+        selNotifTarget.value = distinto.value;
       }
 
-      async function crearConversacionGrupal() {
-        const grupo_id =
-          Number(document.getElementById("grpId").value) ||
-          Math.floor(Math.random() * 500) + 1;
-        const nombre =
-          document.getElementById("grpNombre").value.trim() ||
-          "Grupo de Estudio";
-        const miembros = document
-          .getElementById("grpMiembros")
-          .value.split(",")
-          .map((x) => Number(x.trim()))
-          .filter((x) => !isNaN(x) && x > 0);
+      // Poblar selector de Materias
+      selMateria.innerHTML = "";
+      if (MATERIAS_CACHE.length === 0) {
+        const optMat = document.createElement("option");
+        optMat.value = "1";
+        optMat.textContent = "Arquitectura y Sistemas Distribuidos";
+        selMateria.appendChild(optMat);
+      } else {
+        MATERIAS_CACHE.forEach((m) => {
+          const mid = m.materia_id || m.id;
+          const optMat = document.createElement("option");
+          optMat.value = mid;
+          optMat.textContent = m.nombre;
+          selMateria.appendChild(optMat);
+        });
+      }
+    }
 
-        const res = await fetch(
-          `${detectarUrlBase()}/api/v1/conversaciones/grupo`,
-          {
-            method: "POST",
-            headers: getHeaders(),
-            body: JSON.stringify({ grupo_id, nombre, miembros }),
-          },
-        );
-        const data = await res.json();
-        registrarLog("POST /api/v1/conversaciones/grupo", res.status, data);
+    async function cambiarSesionEstudiante() {
+      const selSesion = document.getElementById("session-user");
+      USUARIO_ACTIVO_ID = Number(selSesion.value);
+      if (!USUARIO_ACTIVO_ID) return;
 
-        if (res.ok) {
-          await cargarConversaciones();
-          abrirSala({
-            id: data.grupo_id,
-            tipo: "grupal",
-            receptorId: null,
-            grupoId: data.grupo_id,
-            titulo: `👥 ${data.nombre}`,
-          });
-        }
+      // Ajustar selector de compañero para que no apunte a sí mismo por defecto
+      const selPeer = document.getElementById("peer-user");
+      if (Number(selPeer.value) === USUARIO_ACTIVO_ID) {
+        const otraOpcion = Array.from(selPeer.options).find((o) => Number(o.value) !== USUARIO_ACTIVO_ID);
+        if (otraOpcion) selPeer.value = otraOpcion.value;
       }
 
-      async function cargarConversaciones() {
-        const uid = getActiveUserId();
-        const cont = document.getElementById("convListContainer");
-        if (!uid) {
-          cont.innerHTML =
-            '<p style="font-size:0.8rem;color:var(--danger);">Sin sesión activa.</p>';
-          return;
-        }
+      conectarWebSocket(USUARIO_ACTIVO_ID);
+      await Promise.all([cargarConversaciones(), cargarNotificaciones()]);
+    }
 
-        const res = await fetch(
-          `${detectarUrlBase()}/api/v1/usuarios/${uid}/conversaciones`,
-          {
-            headers: getHeaders(),
-          },
-        );
-        const lista = await res.json();
-        cont.innerHTML = "";
+    // =========================================================
+    // CONEXIÓN WEBSOCKET (SOPORTA WS:// EN LOCAL Y WSS:// EN RAILWAY)
+    // =========================================================
+    function conectarWebSocket(usuarioId) {
+      if (WS_CLIENT) {
+        WS_CLIENT.onclose = null;
+        WS_CLIENT.close();
+      }
+
+      const baseHttp = getBaseUrl();
+      const wsBase = baseHttp.replace(/^http/i, "ws");
+      const wsUrl = `${wsBase}/api/v1/chat/ws?usuario_id=${usuarioId}`;
+      const badge = document.getElementById("ws-status");
+      const nombreActivo = obtenerNombreEstudiante(usuarioId);
+
+      WS_CLIENT = new WebSocket(wsUrl);
+
+      WS_CLIENT.onopen = () => {
+        badge.className = "ws-badge";
+        badge.textContent = `En línea: ${nombreActivo}`;
+      };
+
+      WS_CLIENT.onmessage = async (event) => {
+        try {
+          const payload = JSON.parse(event.data);
+          registrarMonitor("⚡ Evento Tiempo Real (WS)", payload);
+
+          if (payload.evento === "nuevo_mensaje") {
+            await cargarConversaciones();
+            if (CONVERSACION_ACTIVA) {
+              await recargarMensajesActivos();
+            }
+          } else if (payload.evento === "mensaje_eliminado") {
+            if (CONVERSACION_ACTIVA) {
+              await recargarMensajesActivos();
+            }
+            await cargarConversaciones();
+          } else if (payload.evento === "nueva_notificacion") {
+            await cargarNotificaciones();
+          }
+        } catch (err) {
+          console.error("Error procesando evento WS:", err);
+        }
+      };
+
+      WS_CLIENT.onclose = () => {
+        badge.className = "ws-badge offline";
+        badge.textContent = "Desconectado";
+      };
+    }
+
+    // =========================================================
+    // CONVERSACIONES Y GRUPOS
+    // =========================================================
+    async function cargarConversaciones() {
+      if (!USUARIO_ACTIVO_ID) return;
+      try {
+        const resp = await fetch(`${getBaseUrl()}/api/v1/usuarios/${USUARIO_ACTIVO_ID}/conversaciones`);
+        const lista = await resp.json();
+        const contenedor = document.getElementById("conv-list");
+        contenedor.innerHTML = "";
 
         if (!Array.isArray(lista) || lista.length === 0) {
-          cont.innerHTML =
-            '<p style="font-size:0.8rem;color:var(--text-muted);">No tienes conversaciones aún. Inicia un chat arriba.</p>';
+          contenedor.innerHTML = `<div class="chat-subtitle" style="padding: 0.5rem;">Aún no tienes salas activas.</div>`;
           return;
         }
 
-        lista.forEach((c) => {
-          const div = document.createElement("div");
+        lista.forEach((conv) => {
+          const btn = document.createElement("button");
+          btn.type = "button";
           const esActiva =
-            currentChat.id === c.conversacion_id && currentChat.tipo === c.tipo;
-          div.className = `conv-item ${esActiva ? "active" : ""}`;
-          const tituloSala =
-            c.tipo === "grupal"
-              ? `👥 ${c.nombre || "Grupo #" + c.grupo_id}`
-              : `👤 ${nombreEstudiante(c.conversacion_id)}`;
+            CONVERSACION_ACTIVA &&
+            CONVERSACION_ACTIVA.conversacion_id === conv.conversacion_id &&
+            CONVERSACION_ACTIVA.tipo === conv.tipo;
 
-          div.innerHTML = `
-          <div class="conv-title">
-            <span>${tituloSala}</span>
-            <span style="font-size:0.72rem;color:#60a5fa;">${c.tipo}</span>
-          </div>
-          <div class="conv-sub">${c.ultimo_mensaje ? "💬 " + c.ultimo_mensaje : "Sala lista para conversar"}</div>
-        `;
-          div.onclick = () =>
-            abrirSala({
-              id: c.conversacion_id,
-              tipo: c.tipo,
-              receptorId: c.tipo === "individual" ? c.conversacion_id : null,
-              grupoId: c.tipo === "grupal" ? c.grupo_id : null,
-              titulo: tituloSala,
-            });
-          cont.appendChild(div);
-        });
-      }
+          btn.className = `conv-item ${esActiva ? "active" : ""}`;
+          const nombreLimpio =
+            conv.tipo === "individual"
+              ? obtenerNombreEstudiante(conv.conversacion_id)
+              : embellecerTextoSinIds(conv.nombre);
 
-      function abrirSala(sala) {
-        currentChat = sala;
-        document.getElementById("activeChatTitle").textContent = sala.titulo;
-        document.getElementById("activeChatSubtitle").textContent =
-          sala.tipo === "grupal"
-            ? `(ID de Grupo: ${sala.grupoId})`
-            : `(Conversación directa)`;
-        document.getElementById("btnSalirGrupo").style.display =
-          sala.tipo === "grupal" ? "inline-block" : "none";
-        cargarMensajes();
-        cargarConversaciones();
-      }
+          const preview = conv.ultimo_mensaje
+            ? embellecerTextoSinIds(conv.ultimo_mensaje)
+            : "Sala lista para conversar";
 
-      async function cargarMensajes() {
-        if (!currentChat.id) return;
-        const uid = getActiveUserId();
-        const queryParam =
-          currentChat.tipo === "individual" && uid ? `?usuario_id=${uid}` : "";
-        const res = await fetch(
-          `${detectarUrlBase()}/api/v1/conversaciones/${currentChat.id}/mensajes${queryParam}`,
-          {
-            headers: getHeaders(),
-          },
-        );
-        const data = await res.json();
-        const cont = document.getElementById("messagesContainer");
-        cont.innerHTML = "";
-
-        if (!Array.isArray(data) || data.length === 0) {
-          cont.innerHTML =
-            '<p style="color:var(--text-muted);text-align:center;margin-top:30px;">Aún no hay mensajes en esta sala. ¡Envía el primero!</p>';
-          return;
-        }
-
-        const miId = Number(uid);
-        data.forEach((m) => {
-          const esMio = m.remitente_id === miId;
-          const eliminado = m.estado === "eliminado" || m.contenido === null;
-          const bubble = document.createElement("div");
-          bubble.className = `msg-bubble ${esMio ? "mine" : ""} ${eliminado ? "deleted" : ""}`;
-
-          const textoMostrar = eliminado ? "🚫 Mensaje eliminado" : m.contenido;
-
-          bubble.innerHTML = `
-          <div class="msg-meta">
-            <strong>${nombreEstudiante(m.remitente_id)} ${esMio ? "(Tú)" : ""}</strong>
-            <span>#${m.mensaje_id} • ${m.estado} • ${m.enviado_en || ""}</span>
-          </div>
-          <div class="msg-text">${textoMostrar}</div>
-          ${
-            esMio && !eliminado
-              ? `
-            <div class="msg-actions">
-              <button class="btn-secondary" onclick="editarMensajePrompt(${m.mensaje_id}, ${JSON.stringify(m.contenido || "")})">✏️ Editar</button>
-              <button class="btn-danger" onclick="eliminarMensaje(${m.mensaje_id})">🗑️ Borrar</button>
+          btn.innerHTML = `
+            <div class="conv-item-top">
+              <span class="conv-name">${conv.tipo === "grupal" ? "👥" : "👤"} ${nombreLimpio}</span>
+              <span class="conv-tag">${conv.tipo}</span>
             </div>
-          `
-              : ""
-          }
-        `;
-          cont.appendChild(bubble);
+            <div class="conv-preview">💬 ${preview}</div>
+          `;
+
+          btn.onclick = () => seleccionarConversacion({
+            conversacion_id: conv.conversacion_id,
+            tipo: conv.tipo,
+            grupo_id: conv.grupo_id,
+            nombre: nombreLimpio
+          });
+
+          contenedor.appendChild(btn);
         });
-        cont.scrollTop = cont.scrollHeight;
+      } catch (err) {
+        registrarMonitor("ERROR LISTAR CONVERSACIONES", String(err));
+      }
+    }
+
+    async function seleccionarConversacion(conv) {
+      CONVERSACION_ACTIVA = conv;
+      document.getElementById("active-chat-title").textContent = conv.nombre;
+      document.getElementById("active-chat-subtitle").textContent =
+        conv.tipo === "grupal" ? "Grupo de estudio colaborativo" : "Conversación directa entre estudiantes";
+
+      document.getElementById("msg-input").disabled = false;
+      document.getElementById("btn-send").disabled = false;
+
+      // En móvil, cerrar automáticamente el cajón lateral al elegir una sala
+      if (esVistaMovil()) {
+        cerrarDrawersMovil();
       }
 
-      async function enviarMensaje() {
-        if (!currentChat.id) {
-          alert("Primero abre o crea una conversación en el panel izquierdo.");
+      await cargarConversaciones();
+      await recargarMensajesActivos();
+    }
+
+    async function crearChatIndividual() {
+      const peerId = Number(document.getElementById("peer-user").value);
+      const origen = document.getElementById("chat-origin").value;
+
+      try {
+        const resp = await fetch(`${getBaseUrl()}/api/v1/conversaciones`, {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({
+            usuario_id_1: USUARIO_ACTIVO_ID,
+            usuario_id_2: peerId,
+            origen: origen
+          })
+        });
+        const data = await resp.json();
+        registrarMonitor(`POST /api/v1/conversaciones (${resp.status})`, data);
+
+        if (resp.ok) {
+          await cargarConversaciones();
+          await seleccionarConversacion({
+            conversacion_id: peerId,
+            tipo: "individual",
+            grupo_id: null,
+            nombre: obtenerNombreEstudiante(peerId)
+          });
+        } else {
+          alert(data.detail || "No fue posible abrir la conversación.");
+        }
+      } catch (err) {
+        registrarMonitor("ERROR CREAR CHAT", String(err));
+      }
+    }
+
+    async function crearGrupoEstudio() {
+      const nombre = document.getElementById("group-name").value.trim();
+      const materiaId = Number(document.getElementById("group-materia").value) || 1;
+      const checks = document.querySelectorAll("#group-members-list input[type='checkbox']:checked");
+      const seleccionados = Array.from(checks).map((c) => Number(c.value));
+
+      if (!nombre) {
+        alert("Escribe un nombre para el grupo de estudio.");
+        return;
+      }
+      if (!seleccionados.includes(USUARIO_ACTIVO_ID)) {
+        seleccionados.push(USUARIO_ACTIVO_ID);
+      }
+
+      try {
+        const resp = await fetch(`${getBaseUrl()}/api/v1/conversaciones/grupo`, {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({
+            nombre: nombre,
+            materia_id: materiaId,
+            creador_id: USUARIO_ACTIVO_ID,
+            usuario_ids: seleccionados
+          })
+        });
+        const data = await resp.json();
+        registrarMonitor(`POST /api/v1/conversaciones/grupo (${resp.status})`, data);
+
+        if (resp.ok) {
+          document.getElementById("group-name").value = "";
+          await cargarConversaciones();
+          await seleccionarConversacion({
+            conversacion_id: data.grupo_id || data.conversacion_id,
+            tipo: "grupal",
+            grupo_id: data.grupo_id || data.conversacion_id,
+            nombre: nombre
+          });
+        } else {
+          alert(data.detail || "Error creando el grupo de estudio.");
+        }
+      } catch (err) {
+        registrarMonitor("ERROR CREAR GRUPO", String(err));
+      }
+    }
+
+    // =========================================================
+    // MENSAJES EN TIEMPO REAL Y BORRADO LÓGICO
+    // =========================================================
+    async function recargarMensajesActivos() {
+      if (!CONVERSACION_ACTIVA || !USUARIO_ACTIVO_ID) return;
+      const cid = CONVERSACION_ACTIVA.conversacion_id;
+      const tipo = CONVERSACION_ACTIVA.tipo;
+
+      try {
+        const url = `${getBaseUrl()}/api/v1/conversaciones/${cid}/mensajes?usuario_id=${USUARIO_ACTIVO_ID}&tipo=${tipo}`;
+        const resp = await fetch(url);
+        const data = await resp.json();
+        const mensajes = Array.isArray(data) ? data : (data.mensajes || []);
+
+        const viewport = document.getElementById("messages-viewport");
+        viewport.innerHTML = "";
+
+        if (mensajes.length === 0) {
+          viewport.innerHTML = `<div class="empty-state">Aún no hay mensajes en esta sala. ¡Envía el primero!</div>`;
           return;
         }
-        const input = document.getElementById("mensajeInput");
-        const contenido = input.value.trim();
-        if (!contenido) return;
 
-        const payload = {
-          contenido,
-          receptor_id: currentChat.receptorId,
-          grupo_id: currentChat.grupoId,
-        };
+        mensajes.forEach((m) => {
+          const esMio = Number(m.remitente_id) === USUARIO_ACTIVO_ID;
+          const eliminado = m.estado === "eliminado" || m.eliminado === true;
+          const autorNombre = esMio ? "Tú" : obtenerNombreEstudiante(m.remitente_id);
 
-        const res = await fetch(
-          `${detectarUrlBase()}/api/v1/conversaciones/${currentChat.id}/mensajes`,
-          {
-            method: "POST",
-            headers: getHeaders(),
-            body: JSON.stringify(payload),
-          },
-        );
-        const data = await res.json();
-        registrarLog(
-          `POST /api/v1/conversaciones/${currentChat.id}/mensajes`,
-          res.status,
-          data,
-        );
+          const fila = document.createElement("div");
+          fila.className = `msg-row ${esMio ? "own" : "other"}`;
 
-        if (res.ok) {
+          const fechaStr = m.enviado_en ? new Date(m.enviado_en).toLocaleTimeString("es-CO", { hour: "2-digit", minute: "2-digit" }) : "";
+
+          fila.innerHTML = `
+            <span class="msg-author">${autorNombre}</span>
+            <div class="msg-bubble ${eliminado ? "deleted" : ""}">
+              ${eliminado ? "🚫 Este mensaje fue eliminado" : m.contenido}
+            </div>
+            <div class="msg-meta">
+              <span>${fechaStr}</span>
+              ${esMio && !eliminado ? `<button type="button" class="btn-delete-msg" onclick="eliminarMensaje(${m.mensaje_id})">Eliminar</button>` : ""}
+            </div>
+          `;
+          viewport.appendChild(fila);
+        });
+
+        viewport.scrollTop = viewport.scrollHeight;
+      } catch (err) {
+        registrarMonitor("ERROR CARGAR MENSAJES", String(err));
+      }
+    }
+
+    async function enviarMensaje(ev) {
+      ev.preventDefault();
+      if (!CONVERSACION_ACTIVA || !USUARIO_ACTIVO_ID) return;
+
+      const input = document.getElementById("msg-input");
+      const texto = input.value.trim();
+      if (!texto) return;
+
+      const payload = {
+        conversacion_id: CONVERSACION_ACTIVA.conversacion_id,
+        remitente_id: USUARIO_ACTIVO_ID,
+        receptor_id: CONVERSACION_ACTIVA.tipo === "individual" ? CONVERSACION_ACTIVA.conversacion_id : null,
+        grupo_id: CONVERSACION_ACTIVA.tipo === "grupal" ? (CONVERSACION_ACTIVA.grupo_id || CONVERSACION_ACTIVA.conversacion_id) : null,
+        contenido: texto
+      };
+
+      try {
+        const resp = await fetch(`${getBaseUrl()}/api/v1/mensajes`, {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify(payload)
+        });
+        const data = await resp.json();
+        registrarMonitor(`POST /api/v1/mensajes (${resp.status})`, data);
+
+        if (resp.ok) {
           input.value = "";
-          await cargarMensajes();
+          await recargarMensajesActivos();
           await cargarConversaciones();
         }
+      } catch (err) {
+        registrarMonitor("ERROR ENVIAR MENSAJE", String(err));
       }
+    }
 
-      async function editarMensajePrompt(mensajeId, contenidoActual) {
-        const nuevo = prompt(
-          `Editar mensaje #${mensajeId}:`,
-          contenidoActual || "",
-        );
-        if (!nuevo || !nuevo.trim()) return;
-
-        const res = await fetch(
-          `${detectarUrlBase()}/api/v1/mensajes/${mensajeId}`,
-          {
-            method: "PUT",
-            headers: getHeaders(),
-            body: JSON.stringify({ contenido: nuevo.trim() }),
-          },
-        );
-        const data = await res.json();
-        registrarLog(`PUT /api/v1/mensajes/${mensajeId}`, res.status, data);
-        await cargarMensajes();
-      }
-
-      async function eliminarMensaje(mensajeId) {
-        const res = await fetch(
-          `${detectarUrlBase()}/api/v1/mensajes/${mensajeId}`,
-          {
-            method: "DELETE",
-            headers: getHeaders(),
-          },
-        );
-        const data = await res.json();
-        registrarLog(`DELETE /api/v1/mensajes/${mensajeId}`, res.status, data);
-        await cargarMensajes();
-      }
-
-      async function salirDeGrupo() {
-        const uid = getActiveUserId();
-        if (!currentChat.grupoId || !uid) return;
-        const res = await fetch(
-          `${detectarUrlBase()}/api/v1/conversaciones/${currentChat.grupoId}/miembros/${uid}`,
-          {
-            method: "DELETE",
-            headers: getHeaders(),
-          },
-        );
-        const data = await res.json();
-        registrarLog(
-          `DELETE /conversaciones/${currentChat.grupoId}/miembros/${uid}`,
-          res.status,
-          data,
-        );
+    async function eliminarMensaje(mensajeId) {
+      try {
+        const resp = await fetch(`${getBaseUrl()}/api/v1/mensajes/${mensajeId}?usuario_id=${USUARIO_ACTIVO_ID}`, {
+          method: "DELETE"
+        });
+        const data = await resp.json();
+        registrarMonitor(`DELETE /api/v1/mensajes/${mensajeId} (${resp.status})`, data);
+        await recargarMensajesActivos();
         await cargarConversaciones();
+      } catch (err) {
+        registrarMonitor("ERROR ELIMINAR MENSAJE", String(err));
       }
+    }
 
-      async function crearNotificacionMatch() {
-        const usuario_id = Number(
-          document.getElementById("notifTargetSelect").value,
-        );
-        const usuario_match_id = Number(getActiveUserId()) || 1;
-        const porcentaje_match =
-          Number(document.getElementById("notifPorcentaje").value) || 95;
+    // =========================================================
+    // NOTIFICACIONES CON NOMBRES REALES
+    // =========================================================
+    async function cargarNotificaciones() {
+      if (!USUARIO_ACTIVO_ID) return;
+      try {
+        const resp = await fetch(`${getBaseUrl()}/api/v1/notificaciones?usuario_id=${USUARIO_ACTIVO_ID}`);
+        const data = await resp.json();
+        const todas = Array.isArray(data) ? data : (data.notificaciones || []);
+        const mias = todas.filter((n) => !n.usuario_id || Number(n.usuario_id) === USUARIO_ACTIVO_ID);
 
-        const res = await fetch(`${detectarUrlBase()}/api/v1/notificaciones`, {
+        const list = document.getElementById("notif-list");
+        list.innerHTML = "";
+
+        if (mias.length === 0) {
+          list.innerHTML = `<div class="chat-subtitle" style="padding: 0.5rem;">No tienes notificaciones pendientes.</div>`;
+          return;
+        }
+
+        mias.forEach((n) => {
+          const card = document.createElement("div");
+          const esMatch = n.tipo === "nuevo_match";
+          card.className = `notif-card ${esMatch ? "" : "msg-type"}`;
+
+          const titulo = esMatch ? "🎯 Nuevo Match" : "📩 Nuevo Mensaje";
+          const textoConNombre = embellecerTextoSinIds(n.texto);
+
+          card.innerHTML = `
+            <div class="notif-header">
+              <span>${titulo}</span>
+              <span>${n.leida ? "Leída" : "Nueva"}</span>
+            </div>
+            <div class="notif-text">${textoConNombre}</div>
+            <div class="notif-date">${n.creada_en || ""}</div>
+          `;
+          list.appendChild(card);
+        });
+      } catch (err) {
+        registrarMonitor("ERROR NOTIFICACIONES", String(err));
+      }
+    }
+
+    async function simularNuevoMatch() {
+      const targetId = Number(document.getElementById("notif-target-user").value);
+      const porcentaje = Number(document.getElementById("notif-percent").value) || 95;
+
+      const payload = {
+        match_id: Math.floor(100 + Math.random() * 900),
+        usuario_id: targetId,
+        usuario_match_id: USUARIO_ACTIVO_ID,
+        habilidad_id: 1,
+        porcentaje_match: porcentaje
+      };
+
+      try {
+        const resp = await fetch(`${getBaseUrl()}/api/v1/notificaciones`, {
           method: "POST",
-          headers: getHeaders(),
-          body: JSON.stringify({
-            match_id: Math.floor(Math.random() * 900) + 100,
-            usuario_id,
-            usuario_match_id,
-            habilidad_id: 1,
-            porcentaje_match,
-          }),
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify(payload)
         });
-        const data = await res.json();
-        registrarLog("POST /api/v1/notificaciones", res.status, data);
+        const data = await resp.json();
+        registrarMonitor(`POST /api/v1/notificaciones (${resp.status})`, data);
         await cargarNotificaciones();
+      } catch (err) {
+        registrarMonitor("ERROR SIMULAR MATCH", String(err));
       }
+    }
 
-      async function cargarNotificaciones() {
-        const res = await fetch(`${detectarUrlBase()}/api/v1/notificaciones`, {
-          headers: getHeaders(),
-        });
-        const data = await res.json();
-        const cont = document.getElementById("notifListContainer");
-        cont.innerHTML = "";
-
-        if (!res.ok) {
-          cont.innerHTML = `<p style="font-size:0.8rem;color:var(--danger);">${data.detail || "Error 401"}</p>`;
-          return;
-        }
-
-        if (!Array.isArray(data) || data.length === 0) {
-          cont.innerHTML =
-            '<p style="font-size:0.8rem;color:var(--text-muted);">No tienes notificaciones pendientes.</p>';
-          return;
-        }
-
-        data.forEach((n) => {
-          const div = document.createElement("div");
-          div.className = `notif-item ${n.tipo === "nuevo_match" ? "match" : ""}`;
-          div.innerHTML = `
-          <div style="display:flex;justify-content:space-between;font-weight:600;margin-bottom:3px;">
-            <span>${n.tipo === "nuevo_match" ? "🎯 Nuevo Match" : "📩 Nuevo Mensaje"}</span>
-            <span style="font-size:0.7rem;color:var(--text-muted);">#${n.notificacion_id}</span>
-          </div>
-          <div>${n.texto}</div>
-          <div style="font-size:0.7rem;color:var(--text-muted);margin-top:4px;">${n.creada_en || ""}</div>
-        `;
-          cont.appendChild(div);
-        });
-      }
-
-      window.addEventListener("DOMContentLoaded", () => {
-        inicializarFrontend();
-      });
-    </script>
-  </body>
+    // =========================================================
+    // ARRANQUE INICIAL
+    // =========================================================
+    window.addEventListener("DOMContentLoaded", () => {
+      aplicarTemaGuardado();
+      sincronizarTodo();
+    });
+  </script>
+</body>
 </html>

@@ -220,14 +220,20 @@ async def crear_conversacion_individual(
 
     if datos.origen == "match":
         match_confirmado = False
+        nombre_u2 = f"{u2.nombre} {u2.apellido or ''}".strip()
 
-        # 1. Verificar si ya tienen un match registrado en Neon (tabla notificaciones)
+        # 1. Verificar si ya tienen un match registrado en Neon (por nombre o por texto previo)
         notifs_match = db.query(models.Notificacion).filter(
             models.Notificacion.usuario_id == datos.usuario_id_1,
             models.Notificacion.tipo == "nuevo_match"
         ).all()
         for n in notifs_match:
-            if f"estudiante {datos.usuario_id_2}" in (n.texto or "") or f"#{datos.usuario_id_2}" in (n.texto or ""):
+            txt = (n.texto or "").lower()
+            if (
+                nombre_u2.lower() in txt
+                or u2.nombre.lower() in txt
+                or f"estudiante {datos.usuario_id_2}" in txt
+            ):
                 match_confirmado = True
                 break
 
@@ -247,13 +253,13 @@ async def crear_conversacion_individual(
             except httpx.RequestError as e:
                 raise HTTPException(
                     status_code=503,
-                    detail=f"No se pudo conectar a {MATCHING_SERVICE_URL}: {str(e)}"
+                    detail=f"No se pudo conectar al servicio de Matching: {str(e)}"
                 )
 
         if not match_confirmado:
             raise HTTPException(
                 status_code=403,
-                detail=f"No existe un match activo entre el estudiante {datos.usuario_id_1} y el estudiante {datos.usuario_id_2}."
+                detail=f"No existe un match activo entre {u1.nombre} y {nombre_u2}."
             )
 
     conv_id = datos.usuario_id_2
@@ -492,7 +498,7 @@ async def listar_conversaciones_usuario(
             if otro_id not in contactos_vistos:
                 contactos_vistos.add(otro_id)
                 u_otro = db.query(models.Usuario).filter(models.Usuario.usuario_id == otro_id).first()
-                nombre_chat = f"{u_otro.nombre} {u_otro.apellido or ''}".strip() + f" (#{otro_id})" if u_otro else f"Chat con Estudiante #{otro_id}"
+                nombre_chat = f"{u_otro.nombre} {u_otro.apellido or ''}".strip() if u_otro else "Estudiante de StudyMatch"
                 ult_msg = db.query(models.Mensaje).filter(
                     and_(
                         models.Mensaje.grupo_id.is_(None),
@@ -524,7 +530,7 @@ async def listar_conversaciones_usuario(
         if otro_id is not None and otro_id not in contactos_vistos:
             contactos_vistos.add(otro_id)
             u_otro = db.query(models.Usuario).filter(models.Usuario.usuario_id == otro_id).first()
-            nombre_chat = f"{u_otro.nombre} {u_otro.apellido or ''}".strip() + f" (#{otro_id})" if u_otro else f"Chat con Estudiante #{otro_id}"
+            nombre_chat = f"{u_otro.nombre} {u_otro.apellido or ''}".strip() if u_otro else "Estudiante de StudyMatch"
             resultado.append({
                 "conversacion_id": otro_id,
                 "tipo": "individual",
@@ -557,6 +563,7 @@ async def listar_conversaciones_usuario(
 # ==========================================
 # 7. CREAR NOTIFICACIÓN (TIEMPO REAL PARA AMBOS ESTUDIANTES DEL MATCH)
 # ==========================================
+
 @app.post("/api/v1/notificaciones", status_code=201)
 async def crear_notificacion(
     evento: schemas.NotificacionMatchCreate,
@@ -564,13 +571,14 @@ async def crear_notificacion(
 ):
     usuario_real = db.query(models.Usuario).filter(models.Usuario.usuario_id == evento.usuario_id).first()
     if usuario_real is None:
-        raise HTTPException(
-            status_code=404,
-            detail=f"El usuario_id {evento.usuario_id} no existe en la tabla 'usuarios' de Neon."
-        )
+        raise HTTPException(status_code=404, detail="El estudiante destinatario no existe en Neon.")
 
-    # 1. Guardar notificación para el usuario destino
-    texto_destino = f"¡Nuevo match ({evento.porcentaje_match}%) con el estudiante {evento.usuario_match_id}!"[:150]
+    u_match = db.query(models.Usuario).filter(models.Usuario.usuario_id == evento.usuario_match_id).first()
+    nombre_destino = f"{usuario_real.nombre} {usuario_real.apellido or ''}".strip()
+    nombre_compa = f"{u_match.nombre} {u_match.apellido or ''}".strip() if u_match else "un compañero compatible"
+
+    # 1. Guardar notificación para el estudiante destino con el nombre real
+    texto_destino = f"¡Nuevo match ({evento.porcentaje_match}%) con {nombre_compa}!"[:150]
     nueva_notif = models.Notificacion(
         usuario_id=evento.usuario_id,
         tipo="nuevo_match",
@@ -596,33 +604,31 @@ async def crear_notificacion(
     if manager.is_connected(evento.usuario_id):
         await manager.send_to_user(evento.usuario_id, {"evento": "nueva_notificacion", "data": payload_destino})
 
-    # 2. Si el otro estudiante del match es distinto y existe en Neon, notificarle también en tiempo real
-    if evento.usuario_match_id != evento.usuario_id:
-        u_match = db.query(models.Usuario).filter(models.Usuario.usuario_id == evento.usuario_match_id).first()
-        if u_match is not None:
-            notif_espejo = models.Notificacion(
-                usuario_id=evento.usuario_match_id,
-                tipo="nuevo_match",
-                referencia_id=evento.match_id,
-                texto=f"¡Nuevo match ({evento.porcentaje_match}%) con el estudiante {evento.usuario_id}!"[:150],
-                leida=False,
-                creada_en=now_bogota()
-            )
-            db.add(notif_espejo)
-            db.commit()
-            db.refresh(notif_espejo)
+    # 2. Notificación espejo en tiempo real para el compañero con el nombre real
+    if evento.usuario_match_id != evento.usuario_id and u_match is not None:
+        notif_espejo = models.Notificacion(
+            usuario_id=evento.usuario_match_id,
+            tipo="nuevo_match",
+            referencia_id=evento.match_id,
+            texto=f"¡Nuevo match ({evento.porcentaje_match}%) con {nombre_destino}!"[:150],
+            leida=False,
+            creada_en=now_bogota()
+        )
+        db.add(notif_espejo)
+        db.commit()
+        db.refresh(notif_espejo)
 
-            payload_espejo = {
-                "notificacion_id": notif_espejo.notificacion_id,
-                "usuario_id": notif_espejo.usuario_id,
-                "tipo": notif_espejo.tipo,
-                "referencia_id": notif_espejo.referencia_id,
-                "texto": notif_espejo.texto,
-                "leida": notif_espejo.leida,
-                "creada_en": fmt_fecha(notif_espejo.creada_en)
-            }
-            if manager.is_connected(evento.usuario_match_id):
-                await manager.send_to_user(evento.usuario_match_id, {"evento": "nueva_notificacion", "data": payload_espejo})
+        payload_espejo = {
+            "notificacion_id": notif_espejo.notificacion_id,
+            "usuario_id": notif_espejo.usuario_id,
+            "tipo": notif_espejo.tipo,
+            "referencia_id": notif_espejo.referencia_id,
+            "texto": notif_espejo.texto,
+            "leida": notif_espejo.leida,
+            "creada_en": fmt_fecha(notif_espejo.creada_en)
+        }
+        if manager.is_connected(evento.usuario_match_id):
+            await manager.send_to_user(evento.usuario_match_id, {"evento": "nueva_notificacion", "data": payload_espejo})
 
     return payload_destino
 
