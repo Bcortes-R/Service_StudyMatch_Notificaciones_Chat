@@ -1,36 +1,75 @@
-from typing import List, Optional
-from pydantic import BaseModel, Field
+from sqlalchemy import Column, Integer, String, Text, Boolean, Date, DateTime, ForeignKey
+from sqlalchemy.orm import declarative_base
+import database
+
+Base = getattr(database, "Base", declarative_base())
 
 
-class ConversacionIndividualCreate(BaseModel):
-    usuario_id_1: int
-    usuario_id_2: int
-    origen: Optional[str] = Field(default="directo")
+class Usuario(Base):
+    __tablename__ = "usuarios"
+    __table_args__ = {"extend_existing": True}
+
+    usuario_id = Column(Integer, primary_key=True, index=True)
+    nombre = Column(String(100), nullable=False)
+    apellido = Column(String(100), nullable=True)
+    correo = Column(String(150), unique=True, nullable=False)
+    estado = Column(String(20), default="activo")
 
 
-class ConversacionGrupalCreate(BaseModel):
-    grupo_id: Optional[int] = None
-    nombre: str
-    usuario_ids: List[int]
-    materia_id: Optional[int] = 1
-    creador_id: Optional[int] = None
+class Materia(Base):
+    __tablename__ = "materias"
+    __table_args__ = {"extend_existing": True}
+
+    materia_id = Column(Integer, primary_key=True, index=True)
+    nombre = Column(String(120), nullable=False)
 
 
-class MensajeCreate(BaseModel):
-    conversacion_id: Optional[int] = None
-    remitente_id: int
-    receptor_id: Optional[int] = None
-    grupo_id: Optional[int] = None
-    contenido: str = Field(..., max_length=150)
+class Grupo(Base):
+    __tablename__ = "grupos"
+    __table_args__ = {"extend_existing": True}
+
+    grupo_id = Column(Integer, primary_key=True, index=True)
+    nombre = Column(String(120), nullable=False)
+    descripcion = Column(Text, nullable=True)
+    materia_id = Column(Integer, ForeignKey("materias.materia_id"), nullable=True)
+    creador_id = Column(Integer, ForeignKey("usuarios.usuario_id"), nullable=True)
+    max_miembros = Column(Integer, default=10)
+    estado = Column(String(20), default="activo")
+    fecha_creacion = Column(Date, nullable=True)
 
 
-# Alias de compatibilidad
-MensajeEnviar = MensajeCreate
+class GrupoUsuario(Base):
+    __tablename__ = "grupo_usuario"
+    __table_args__ = {"extend_existing": True}
+
+    grupo_id = Column(Integer, ForeignKey("grupos.grupo_id"), primary_key=True)
+    usuario_id = Column(Integer, ForeignKey("usuarios.usuario_id"), primary_key=True)
+    rol = Column(String(20), default="miembro")
+    fecha_union = Column(Date, nullable=True)
 
 
-class NotificacionMatchCreate(BaseModel):
-    match_id: Optional[int] = 101
-    usuario_id: int
-    usuario_match_id: int
-    habilidad_id: Optional[int] = 1
-    porcentaje_match: Optional[float] = 100.0
+class Mensaje(Base):
+    __tablename__ = "mensajes"
+    __table_args__ = {"extend_existing": True}
+
+    mensaje_id = Column(Integer, primary_key=True, index=True)
+    remitente_id = Column(Integer, ForeignKey("usuarios.usuario_id"), nullable=False)
+    receptor_id = Column(Integer, ForeignKey("usuarios.usuario_id"), nullable=True)
+    grupo_id = Column(Integer, ForeignKey("grupos.grupo_id"), nullable=True)
+    contenido = Column(String(150), nullable=False)
+    enviado_en = Column(DateTime, nullable=True)
+    leido = Column(Boolean, default=False)
+    estado = Column(String(20), default="enviado")
+
+
+class Notificacion(Base):
+    __tablename__ = "notificaciones"
+    __table_args__ = {"extend_existing": True}
+
+    notificacion_id = Column(Integer, primary_key=True, index=True)
+    usuario_id = Column(Integer, ForeignKey("usuarios.usuario_id"), nullable=False)
+    tipo = Column(String(50), nullable=False)
+    referencia_id = Column(Integer, nullable=True)
+    texto = Column(String(150), nullable=False)
+    leida = Column(Boolean, default=False)
+    creada_en = Column(DateTime, nullable=True)

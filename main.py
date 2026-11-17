@@ -42,7 +42,7 @@ def fmt_fecha(val: Any) -> str:
     return str(val)
 
 
-def nombre_completo_usuario(u: Optional[models.Usuario], fallback_texto: str = "Estudiante de StudyMatch") -> str:
+def nombre_completo_usuario(u: Any, fallback_texto: str = "Estudiante de StudyMatch") -> str:
     if u is None:
         return fallback_texto
     nombre = (u.nombre or "").strip()
