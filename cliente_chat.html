@@ -201,6 +201,24 @@
       box-shadow: 0 0 10px rgba(0, 242, 254, 0.2);
     }
 
+    .notif-counter {
+      display: inline-flex;
+      align-items: center;
+      justify-content: center;
+      min-width: 18px;
+      height: 18px;
+      padding: 0 5px;
+      border-radius: 999px;
+      font-size: 0.68rem;
+      font-weight: 800;
+      background: var(--neon-danger);
+      color: #ffffff;
+    }
+
+    .notif-counter.hidden {
+      display: none;
+    }
+
     .session-controls {
       display: flex;
       align-items: center;
@@ -335,6 +353,7 @@
       border-bottom: 1px solid var(--border-color);
       font-weight: 700;
       font-size: 0.9rem;
+      gap: 0.4rem;
     }
 
     .panel-body {
@@ -621,6 +640,13 @@
       display: flex;
       flex-direction: column;
       gap: 0.25rem;
+      cursor: pointer;
+      transition: transform 0.15s ease, opacity 0.2s ease, border-color 0.2s ease;
+    }
+
+    .notif-card:hover {
+      border-color: var(--border-strong);
+      transform: translateY(-1px);
     }
 
     .notif-card.msg-type {
@@ -667,7 +693,7 @@
 
       .side-panel {
         position: relative;
-        width: 325px;
+        width: 330px;
         transform: none !important;
         box-shadow: none;
         z-index: 10;
@@ -778,6 +804,7 @@
           title="Mostrar u ocultar panel de notificaciones"
         >
           🔔 <span class="hide-mobile">Alertas</span>
+          <span id="notif-badge-count" class="notif-counter hidden">0</span>
         </button>
       </div>
     </header>
@@ -915,8 +942,17 @@
         aria-label="Centro de notificaciones y eventos en tiempo real"
       >
         <div class="panel-header">
-          <span>🔔 Centro de Notificaciones</span>
-          <div style="display: flex; gap: 0.35rem;">
+          <span>🔔 Alertas</span>
+          <div style="display: flex; gap: 0.3rem;">
+            <button
+              type="button"
+              class="icon-btn"
+              onclick="limpiarTodasNotificaciones()"
+              aria-label="Limpiar todas las notificaciones"
+              title="Vaciar todas las alertas"
+            >
+              🗑️ Limpiar
+            </button>
             <button
               type="button"
               class="icon-btn"
@@ -964,7 +1000,10 @@
 
           <!-- Mis Alertas Recibidas -->
           <section class="section-card" style="flex: 1;" aria-labelledby="titulo-alertas">
-            <h2 id="titulo-alertas" class="section-title">Mis Alertas Recibidas</h2>
+            <div class="section-title">
+              <span id="titulo-alertas">Mis Alertas Pendientes</span>
+              <span class="chat-subtitle" style="font-size: 0.68rem; text-transform: none;">Clic para descartar</span>
+            </div>
             <div id="notif-list" class="notif-list" role="list"></div>
           </section>
 
@@ -1268,12 +1307,20 @@
             if (CONVERSACION_ACTIVA) {
               await recargarMensajesActivos();
             }
+            await cargarNotificaciones();
           } else if (payload.evento === "mensaje_eliminado") {
             if (CONVERSACION_ACTIVA) {
               await recargarMensajesActivos();
             }
             await cargarConversaciones();
-          } else if (payload.evento === "nueva_notificacion") {
+          } else if (
+            payload.evento === "nueva_notificacion" ||
+            payload.evento === "notificacion_descartada" ||
+            payload.evento === "notificaciones_limpiadas"
+          ) {
+            if (CONVERSACION_ACTIVA) {
+              await recargarMensajesActivos();
+            }
             await cargarNotificaciones();
           }
         } catch (err) {
@@ -1358,6 +1405,7 @@
 
       await cargarConversaciones();
       await recargarMensajesActivos();
+      await cargarNotificaciones(); // Limpia de la bandeja las notificaciones de mensajes de este chat
     }
 
     async function crearChatIndividual() {
@@ -1543,7 +1591,7 @@
     }
 
     // =========================================================
-    // NOTIFICACIONES CON NOMBRES REALES
+    // NOTIFICACIONES CON AUTO-LIMPIEZA Y BORRADO INDIVIDUAL/MASIVO
     // =========================================================
     async function cargarNotificaciones() {
       if (!USUARIO_ACTIVO_ID) return;
@@ -1551,7 +1599,17 @@
         const resp = await fetch(`${getBaseUrl()}/api/v1/notificaciones?usuario_id=${USUARIO_ACTIVO_ID}`);
         const data = await resp.json();
         const todas = Array.isArray(data) ? data : (data.notificaciones || []);
-        const mias = todas.filter((n) => !n.usuario_id || Number(n.usuario_id) === USUARIO_ACTIVO_ID);
+        const mias = todas.filter((n) => (!n.usuario_id || Number(n.usuario_id) === USUARIO_ACTIVO_ID) && !n.leida);
+
+        // Actualizar contador de notificaciones en la barra superior
+        const badgeCount = document.getElementById("notif-badge-count");
+        if (mias.length > 0) {
+          badgeCount.textContent = String(mias.length);
+          badgeCount.classList.remove("hidden");
+        } else {
+          badgeCount.textContent = "0";
+          badgeCount.classList.add("hidden");
+        }
 
         const list = document.getElementById("notif-list");
         list.innerHTML = "";
@@ -1565,6 +1623,7 @@
           const card = document.createElement("div");
           const esMatch = n.tipo === "nuevo_match";
           card.className = `notif-card ${esMatch ? "" : "msg-type"}`;
+          card.title = "Haz clic para marcar como vista";
 
           const titulo = esMatch ? "🎯 Nuevo Match" : "📩 Nuevo Mensaje";
           const textoConNombre = embellecerTextoSinIds(n.texto);
@@ -1572,15 +1631,56 @@
           card.innerHTML = `
             <div class="notif-header">
               <span>${titulo}</span>
-              <span>${n.leida ? "Leída" : "Nueva"}</span>
+              <button
+                type="button"
+                class="btn-delete-msg"
+                style="text-decoration: none; font-size: 0.75rem;"
+                title="Descartar alerta"
+                aria-label="Descartar alerta"
+              >
+                ✕ Visto
+              </button>
             </div>
             <div class="notif-text">${textoConNombre}</div>
             <div class="notif-date">${n.creada_en || ""}</div>
           `;
+
+          card.onclick = () => descartarNotificacion(n.notificacion_id, card);
           list.appendChild(card);
         });
       } catch (err) {
         registrarMonitor("ERROR NOTIFICACIONES", String(err));
+      }
+    }
+
+    async function descartarNotificacion(notificacionId, cardElement) {
+      try {
+        if (cardElement) {
+          cardElement.style.opacity = "0.3";
+          cardElement.style.pointerEvents = "none";
+        }
+        const resp = await fetch(`${getBaseUrl()}/api/v1/notificaciones/${notificacionId}`, {
+          method: "DELETE"
+        });
+        const data = await resp.json();
+        registrarMonitor(`DELETE /api/v1/notificaciones/${notificacionId} (${resp.status})`, data);
+        await cargarNotificaciones();
+      } catch (err) {
+        registrarMonitor("ERROR DESCARTAR NOTIFICACIÓN", String(err));
+      }
+    }
+
+    async function limpiarTodasNotificaciones() {
+      if (!USUARIO_ACTIVO_ID) return;
+      try {
+        const resp = await fetch(`${getBaseUrl()}/api/v1/notificaciones?usuario_id=${USUARIO_ACTIVO_ID}`, {
+          method: "DELETE"
+        });
+        const data = await resp.json();
+        registrarMonitor(`DELETE /api/v1/notificaciones?usuario_id=${USUARIO_ACTIVO_ID} (${resp.status})`, data);
+        await cargarNotificaciones();
+      } catch (err) {
+        registrarMonitor("ERROR LIMPIAR NOTIFICACIONES", String(err));
       }
     }
 

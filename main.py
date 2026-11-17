@@ -53,8 +53,8 @@ def nombre_completo_usuario(u: Optional[models.Usuario], fallback_texto: str = "
 
 app = FastAPI(
     title="StudyMatch - Servicio de Mensajería y Notificaciones",
-    version="2.3-NocheNeon",
-    description="Microservicio en producción sincronizado con todas las restricciones CHECK de Neon PostgreSQL."
+    version="2.4-NocheNeon",
+    description="Microservicio en producción sincronizado con Neon PostgreSQL, Render Matching y Servicio de Grupos."
 )
 
 app.add_middleware(
@@ -209,7 +209,7 @@ async def crear_conversacion_individual(
     if datos.origen == "match":
         match_confirmado = False
 
-        # 1. Verificar si ya existe un match registrado entre ambos en la tabla notificaciones de Neon
+        # 1. Verificar si ya existe un match registrado en la tabla notificaciones de Neon (leída o no leída)
         notifs_match = db.query(models.Notificacion).filter(
             models.Notificacion.usuario_id == datos.usuario_id_1,
             models.Notificacion.tipo == "nuevo_match"
@@ -387,7 +387,7 @@ async def crear_conversacion_grupal(
             ))
     db.commit()
 
-    # 4. Crear mensaje de bienvenida si la sala aún no tiene mensajes y notificar por WebSocket
+    # 4. Crear mensaje de bienvenida y alertas si la sala aún no tiene mensajes
     tiene_mensajes = db.query(models.Mensaje).filter(
         models.Mensaje.grupo_id == grupo_actual.grupo_id
     ).first()
@@ -410,6 +410,7 @@ async def crear_conversacion_grupal(
         db.refresh(msg_bienvenida)
 
         for uid in lista_miembros:
+            # Enviar evento de nuevo mensaje por WebSocket
             if manager.is_connected(uid):
                 await manager.send_to_user(uid, {
                     "evento": "nuevo_mensaje",
@@ -426,6 +427,34 @@ async def crear_conversacion_grupal(
                     }
                 })
 
+            # Crear notificación de nuevo grupo para los demás miembros invitados
+            if uid != creador_id:
+                notif_grupo = models.Notificacion(
+                    usuario_id=uid,
+                    tipo="nuevo_mensaje",
+                    referencia_id=msg_bienvenida.mensaje_id,
+                    texto=f"Te unieron al grupo '{grupo_actual.nombre}' creado por {nombre_creador}"[:150],
+                    leida=False,
+                    creada_en=now_bogota()
+                )
+                db.add(notif_grupo)
+                db.commit()
+                db.refresh(notif_grupo)
+
+                if manager.is_connected(uid):
+                    await manager.send_to_user(uid, {
+                        "evento": "nueva_notificacion",
+                        "data": {
+                            "notificacion_id": notif_grupo.notificacion_id,
+                            "usuario_id": notif_grupo.usuario_id,
+                            "tipo": notif_grupo.tipo,
+                            "referencia_id": notif_grupo.referencia_id,
+                            "texto": notif_grupo.texto,
+                            "leida": notif_grupo.leida,
+                            "creada_en": fmt_fecha(notif_grupo.creada_en)
+                        }
+                    })
+
     return {
         "conversacion_id": grupo_actual.grupo_id,
         "grupo_id": grupo_actual.grupo_id,
@@ -437,7 +466,7 @@ async def crear_conversacion_grupal(
 
 
 # ==========================================
-# 4. ENVIAR MENSAJE (CON NOTIFICACIÓN Y WEBSOCKET USANDO NOMBRES)
+# 4. ENVIAR MENSAJE (GENERA NOTIFICACIÓN EN CHATS INDIVIDUALES Y GRUPALES)
 # ==========================================
 @app.post("/api/v1/mensajes", status_code=201)
 async def enviar_mensaje(
@@ -486,18 +515,49 @@ async def enviar_mensaje(
         "enviado_en": fmt_fecha(nuevo_msg.enviado_en)
     }
 
-    # Emitir por WebSocket a los destinatarios
+    # Emitir mensaje y crear notificación para destinatarios
     if es_grupal:
+        grp = db.query(models.Grupo).filter(models.Grupo.grupo_id == grupo_id).first()
+        nombre_grp = grp.nombre if grp else "Grupo de estudio"
         miembros = db.query(models.GrupoUsuario).filter(models.GrupoUsuario.grupo_id == grupo_id).all()
+
         for m in miembros:
             if manager.is_connected(m.usuario_id):
                 await manager.send_to_user(m.usuario_id, {"evento": "nuevo_mensaje", "data": payload_msg})
+
+            # Crear notificación de nuevo mensaje grupal para todos menos el remitente
+            if m.usuario_id != datos.remitente_id:
+                notif_grp = models.Notificacion(
+                    usuario_id=m.usuario_id,
+                    tipo="nuevo_mensaje",
+                    referencia_id=nuevo_msg.mensaje_id,
+                    texto=f"[{nombre_grp}] {nombre_remitente}: {contenido_limpio[:70]}"[:150],
+                    leida=False,
+                    creada_en=now_bogota()
+                )
+                db.add(notif_grp)
+                db.commit()
+                db.refresh(notif_grp)
+
+                if manager.is_connected(m.usuario_id):
+                    await manager.send_to_user(m.usuario_id, {
+                        "evento": "nueva_notificacion",
+                        "data": {
+                            "notificacion_id": notif_grp.notificacion_id,
+                            "usuario_id": notif_grp.usuario_id,
+                            "tipo": notif_grp.tipo,
+                            "referencia_id": notif_grp.referencia_id,
+                            "texto": notif_grp.texto,
+                            "leida": notif_grp.leida,
+                            "creada_en": fmt_fecha(notif_grp.creada_en)
+                        }
+                    })
     else:
         for uid in {datos.remitente_id, receptor_id}:
             if uid and manager.is_connected(uid):
                 await manager.send_to_user(uid, {"evento": "nuevo_mensaje", "data": payload_msg})
 
-        # Crear notificación de nuevo mensaje con el nombre real del remitente
+        # Crear notificación de nuevo mensaje directo para el receptor
         if receptor_id and receptor_id != datos.remitente_id:
             notif_msg = models.Notificacion(
                 usuario_id=receptor_id,
@@ -573,7 +633,7 @@ async def eliminar_mensaje(
 
 
 # ==========================================
-# 5. LISTAR MENSAJES DE UNA CONVERSACIÓN (INCLUYE NOMBRE DEL AUTOR)
+# 5. LISTAR MENSAJES DE UNA CONVERSACIÓN (AUTO-LIMPIA NOTIFICACIONES AL VER EL CHAT)
 # ==========================================
 @app.get("/api/v1/conversaciones/{id}/mensajes")
 async def listar_mensajes_conversacion(
@@ -640,6 +700,18 @@ async def listar_mensajes_conversacion(
             .limit(limit)
             .all()
         )
+
+    # Auto-limpiar notificaciones de "nuevo_mensaje" cuando el usuario abre/lee esta conversación
+    if usuario_id is not None and mensajes_db:
+        ids_mensajes_sala = [m.mensaje_id for m in mensajes_db]
+        if ids_mensajes_sala:
+            db.query(models.Notificacion).filter(
+                models.Notificacion.usuario_id == usuario_id,
+                models.Notificacion.tipo == "nuevo_mensaje",
+                models.Notificacion.referencia_id.in_(ids_mensajes_sala),
+                models.Notificacion.leida.is_(False)
+            ).update({"leida": True}, synchronize_session=False)
+            db.commit()
 
     return [
         {
@@ -747,7 +819,7 @@ async def listar_conversaciones_usuario(
 
 
 # ==========================================
-# 7. CREAR Y LISTAR NOTIFICACIONES (CON NOMBRES REALES Y TIEMPO REAL)
+# 7. CREAR, LISTAR Y LIMPIAR NOTIFICACIONES (CON NOMBRES REALES Y TIEMPO REAL)
 # ==========================================
 @app.post("/api/v1/notificaciones", status_code=201)
 async def crear_notificacion(
@@ -821,6 +893,7 @@ async def crear_notificacion(
 @app.get("/api/v1/notificaciones")
 async def listar_notificaciones(
     usuario_id: Optional[int] = Query(default=None),
+    incluir_leidas: bool = Query(default=False),
     db: Session = Depends(get_db)
 ):
     usuarios_map = {
@@ -831,6 +904,10 @@ async def listar_notificaciones(
     query = db.query(models.Notificacion)
     if usuario_id is not None:
         query = query.filter(models.Notificacion.usuario_id == usuario_id)
+
+    # Por defecto solo devuelve las notificaciones pendientes (no vistas aún)
+    if not incluir_leidas:
+        query = query.filter(models.Notificacion.leida.is_(False))
 
     notifs = query.order_by(models.Notificacion.notificacion_id.desc()).limit(40).all()
 
@@ -853,6 +930,49 @@ async def listar_notificaciones(
         })
 
     return resultado
+
+
+@app.delete("/api/v1/notificaciones/{notificacion_id}")
+async def descartar_notificacion(
+    notificacion_id: int,
+    db: Session = Depends(get_db)
+):
+    notif = db.query(models.Notificacion).filter(
+        models.Notificacion.notificacion_id == notificacion_id
+    ).first()
+    if notif is None:
+        raise HTTPException(status_code=404, detail="La notificación no existe.")
+
+    notif.leida = True
+    db.commit()
+
+    if manager.is_connected(notif.usuario_id):
+        await manager.send_to_user(notif.usuario_id, {
+            "evento": "notificacion_descartada",
+            "data": {"notificacion_id": notificacion_id}
+        })
+
+    return {"notificacion_id": notificacion_id, "leida": True, "estado": "descartada"}
+
+
+@app.delete("/api/v1/notificaciones")
+async def limpiar_todas_las_notificaciones(
+    usuario_id: int = Query(...),
+    db: Session = Depends(get_db)
+):
+    cantidad = db.query(models.Notificacion).filter(
+        models.Notificacion.usuario_id == usuario_id,
+        models.Notificacion.leida.is_(False)
+    ).update({"leida": True}, synchronize_session=False)
+    db.commit()
+
+    if manager.is_connected(usuario_id):
+        await manager.send_to_user(usuario_id, {
+            "evento": "notificaciones_limpiadas",
+            "data": {"usuario_id": usuario_id, "limpiadas": cantidad}
+        })
+
+    return {"usuario_id": usuario_id, "limpiadas": cantidad, "estado": "bandeja_limpia"}
 
 
 # ==========================================
