@@ -1,26 +1,19 @@
 import os
-from datetime import date, datetime, timedelta, timezone
 from pathlib import Path
-from typing import Any, Dict, List, Optional
+from datetime import datetime, date, timezone, timedelta
+from typing import List, Dict, Any, Optional
 
 import httpx
 from dotenv import load_dotenv
-from fastapi import (
-    Depends,
-    FastAPI,
-    HTTPException,
-    Query,
-    WebSocket,
-    WebSocketDisconnect,
-)
+from fastapi import FastAPI, Depends, HTTPException, WebSocket, WebSocketDisconnect, Query
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import HTMLResponse
-from sqlalchemy import and_, or_
 from sqlalchemy.orm import Session
+from sqlalchemy import or_, and_
 
+from database import get_db
 import models
 import schemas
-from database import get_db
 
 # Forzar la recarga del archivo .env
 load_dotenv(override=True)
@@ -60,8 +53,8 @@ def nombre_completo_usuario(u: Optional[models.Usuario], fallback_texto: str = "
 
 app = FastAPI(
     title="StudyMatch - Servicio de Mensajería y Notificaciones",
-    version="2.2-NocheNeon",
-    description="Microservicio en producción sincronizado con Neon PostgreSQL y Servicio de Matching en Render."
+    version="2.3-NocheNeon",
+    description="Microservicio en producción sincronizado con todas las restricciones CHECK de Neon PostgreSQL."
 )
 
 app.add_middleware(
@@ -148,7 +141,7 @@ async def health_check():
 
 
 # ==========================================
-# 1. DATOS INICIALES (USUARIOS Y MATERIAS CON NOMBRES REALES)
+# 1. DATOS INICIALES (USUARIOS, MATERIAS Y GRUPOS CON NOMBRES REALES)
 # ==========================================
 @app.get("/api/v1/datos-iniciales")
 async def obtener_datos_iniciales(db: Session = Depends(get_db)):
@@ -314,7 +307,7 @@ async def crear_conversacion_individual(
 
 
 # ==========================================
-# 3. CREAR GRUPO DE ESTUDIO
+# 3. CREAR / INICIALIZAR CHAT DE GRUPO DE ESTUDIO (IDEMPOTENTE PARA SERVICIO DE GRUPOS)
 # ==========================================
 @app.post("/api/v1/conversaciones/grupo", status_code=201)
 async def crear_conversacion_grupal(
@@ -337,47 +330,109 @@ async def crear_conversacion_grupal(
             detail="Uno o más estudiantes seleccionados no existen en Neon."
         )
 
-    materia_id = getattr(datos, "materia_id", None) or 1
-    materia_db = db.query(models.Materia).filter(models.Materia.materia_id == materia_id).first()
-    if materia_db is None:
-        primera_materia = db.query(models.Materia).first()
-        if primera_materia:
-            materia_id = primera_materia.materia_id
-
     creador_id = getattr(datos, "creador_id", None) or lista_miembros[0]
+    nombre_limpio = datos.nombre.strip()
 
-    nuevo_grupo = models.Grupo(
-        nombre=datos.nombre.strip(),
-        descripcion=f"Grupo de estudio: {datos.nombre.strip()}",
-        materia_id=materia_id,
-        creador_id=creador_id,
-        max_miembros=max(10, len(lista_miembros)),
-        estado="activo",
-        fecha_creacion=now_bogota().date()
-    )
-    db.add(nuevo_grupo)
-    db.commit()
-    db.refresh(nuevo_grupo)
+    # 1. Verificar si el microservicio de Grupos ya guardó el grupo en Neon
+    grupo_actual = None
+    if datos.grupo_id is not None:
+        grupo_actual = db.query(models.Grupo).filter(models.Grupo.grupo_id == datos.grupo_id).first()
+
+    if grupo_actual is None:
+        grupo_actual = (
+            db.query(models.Grupo)
+            .filter(models.Grupo.nombre == nombre_limpio)
+            .order_by(models.Grupo.grupo_id.desc())
+            .first()
+        )
+
+    # 2. Si no existe aún (ej. creado desde nuestro cliente web), insertarlo en Neon
+    if grupo_actual is None:
+        materia_id = getattr(datos, "materia_id", None) or 1
+        materia_db = db.query(models.Materia).filter(models.Materia.materia_id == materia_id).first()
+        if materia_db is None:
+            primera_materia = db.query(models.Materia).first()
+            if primera_materia:
+                materia_id = primera_materia.materia_id
+
+        grupo_actual = models.Grupo(
+            nombre=nombre_limpio,
+            descripcion=f"Grupo de estudio: {nombre_limpio}",
+            materia_id=materia_id,
+            creador_id=creador_id,
+            max_miembros=max(10, len(lista_miembros)),
+            estado="activo",
+            fecha_creacion=now_bogota().date()
+        )
+        db.add(grupo_actual)
+        db.commit()
+        db.refresh(grupo_actual)
+
+    # 3. Asegurar que todos los miembros estén registrados en grupo_usuario (sin duplicar)
+    miembros_actuales = {
+        m.usuario_id
+        for m in db.query(models.GrupoUsuario).filter(
+            models.GrupoUsuario.grupo_id == grupo_actual.grupo_id
+        ).all()
+    }
 
     for uid in lista_miembros:
-        rol_miembro = "admin" if uid == creador_id else "miembro"
-        membresia = models.GrupoUsuario(
-            grupo_id=nuevo_grupo.grupo_id,
-            usuario_id=uid,
-            rol=rol_miembro,
-            fecha_union=now_bogota().date()
-        )
-        db.add(membresia)
-
+        if uid not in miembros_actuales:
+            rol_miembro = "admin" if uid == creador_id else "miembro"
+            db.add(models.GrupoUsuario(
+                grupo_id=grupo_actual.grupo_id,
+                usuario_id=uid,
+                rol=rol_miembro,
+                fecha_union=now_bogota().date()
+            ))
     db.commit()
 
+    # 4. Crear mensaje de bienvenida si la sala aún no tiene mensajes y notificar por WebSocket
+    tiene_mensajes = db.query(models.Mensaje).filter(
+        models.Mensaje.grupo_id == grupo_actual.grupo_id
+    ).first()
+
+    if tiene_mensajes is None:
+        u_creador = db.query(models.Usuario).filter(models.Usuario.usuario_id == creador_id).first()
+        nombre_creador = nombre_completo_usuario(u_creador)
+
+        msg_bienvenida = models.Mensaje(
+            remitente_id=creador_id,
+            receptor_id=None,
+            grupo_id=grupo_actual.grupo_id,
+            contenido=f"¡Bienvenidos al grupo {grupo_actual.nombre}!"[:150],
+            enviado_en=now_bogota(),
+            leido=False,
+            estado="enviado"
+        )
+        db.add(msg_bienvenida)
+        db.commit()
+        db.refresh(msg_bienvenida)
+
+        for uid in lista_miembros:
+            if manager.is_connected(uid):
+                await manager.send_to_user(uid, {
+                    "evento": "nuevo_mensaje",
+                    "data": {
+                        "mensaje_id": msg_bienvenida.mensaje_id,
+                        "conversacion_id": grupo_actual.grupo_id,
+                        "grupo_id": grupo_actual.grupo_id,
+                        "remitente_id": creador_id,
+                        "remitente_nombre": nombre_creador,
+                        "contenido": msg_bienvenida.contenido,
+                        "estado": "enviado",
+                        "eliminado": False,
+                        "enviado_en": fmt_fecha(msg_bienvenida.enviado_en)
+                    }
+                })
+
     return {
-        "conversacion_id": nuevo_grupo.grupo_id,
-        "grupo_id": nuevo_grupo.grupo_id,
+        "conversacion_id": grupo_actual.grupo_id,
+        "grupo_id": grupo_actual.grupo_id,
         "tipo": "grupal",
-        "nombre": nuevo_grupo.nombre,
+        "nombre": grupo_actual.nombre,
         "miembros": lista_miembros,
-        "creada_en": fmt_fecha(nuevo_grupo.fecha_creacion)
+        "creada_en": fmt_fecha(grupo_actual.fecha_creacion)
     }
 
 
