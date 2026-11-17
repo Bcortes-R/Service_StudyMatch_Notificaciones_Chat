@@ -10,10 +10,8 @@ class Usuario(Base):
     __table_args__ = {"extend_existing": True}
 
     usuario_id = Column(Integer, primary_key=True, index=True)
-    nombre = Column(String(100), nullable=False)
-    apellido = Column(String(100), nullable=True)
-    correo = Column(String(150), unique=True, nullable=False)
-    estado = Column(String(20), default="activo")
+    nombre = Column(String(150), nullable=False)
+    correo = Column(String(150), unique=True, nullable=True)
 
 
 class Materia(Base):
@@ -21,7 +19,7 @@ class Materia(Base):
     __table_args__ = {"extend_existing": True}
 
     materia_id = Column(Integer, primary_key=True, index=True)
-    nombre = Column(String(120), nullable=False)
+    nombre = Column(String(150), nullable=False)
 
 
 class Grupo(Base):
@@ -29,7 +27,7 @@ class Grupo(Base):
     __table_args__ = {"extend_existing": True}
 
     grupo_id = Column(Integer, primary_key=True, index=True)
-    nombre = Column(String(120), nullable=False)
+    nombre = Column(String(150), nullable=False)
     descripcion = Column(Text, nullable=True)
     materia_id = Column(Integer, ForeignKey("materias.materia_id"), nullable=True)
     creador_id = Column(Integer, ForeignKey("usuarios.usuario_id"), nullable=True)

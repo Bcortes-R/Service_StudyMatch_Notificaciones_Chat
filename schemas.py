@@ -1,5 +1,4 @@
 from typing import List, Optional
-
 from pydantic import BaseModel, Field
 
 
@@ -25,7 +24,7 @@ class MensajeCreate(BaseModel):
     contenido: str = Field(..., max_length=150)
 
 
-# Alias de compatibilidad por si algún otro módulo lo importa con otro nombre
+# Alias de compatibilidad
 MensajeEnviar = MensajeCreate
 
 

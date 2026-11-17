@@ -5,9 +5,6 @@
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
   <title>StudyMatch | Mensajería y Notificaciones</title>
   <style>
-    /* =========================================================
-       VARIABLES DE TEMA: OPCIÓN 2 "NOCHE NEÓN" (DEFAULT) Y CLARO
-       ========================================================= */
     :root,
     [data-theme="dark"] {
       --bg-app: #050914;
@@ -65,9 +62,6 @@
       --focus-ring: 0 0 0 3px rgba(37, 99, 235, 0.35);
     }
 
-    /* =========================================================
-       RESET Y BASE ACCESIBLE (MOBILE-FIRST)
-       ========================================================= */
     * {
       box-sizing: border-box;
       margin: 0;
@@ -108,9 +102,6 @@
       border-radius: 999px;
     }
 
-    /* =========================================================
-       ESTRUCTURA GENERAL
-       ========================================================= */
     .app-shell {
       display: flex;
       flex-direction: column;
@@ -286,9 +277,6 @@
       width: 100%;
     }
 
-    /* =========================================================
-       WORKSPACE Y DRAWERS RESPONSIVOS
-       ========================================================= */
     .workspace {
       position: relative;
       display: flex;
@@ -484,9 +472,6 @@
       text-overflow: ellipsis;
     }
 
-    /* =========================================================
-       PANEL CENTRAL DE CHAT
-       ========================================================= */
     .chat-main {
       flex: 1;
       display: flex;
@@ -622,9 +607,6 @@
       border-top: 1px solid var(--border-color);
     }
 
-    /* =========================================================
-       NOTIFICACIONES Y MONITOR
-       ========================================================= */
     .notif-list {
       display: flex;
       flex-direction: column;
@@ -791,7 +773,7 @@
           aria-label="Cambiar entre modo noche neón y modo claro"
           title="Cambiar tema visual"
         >
-          🌙 <span id="theme-label" class="hide-mobile">Noche Neón</span>
+          🌙 <span id="theme-label" class="hide-mobile">Modo Noche</span>
         </button>
 
         <button
@@ -825,7 +807,7 @@
         aria-label="Panel de conversaciones y creación de salas"
       >
         <div class="panel-header">
-          <span>📁 Mis Conversaciones</span>
+          <span>📁 Conversaciones</span>
           <div style="display: flex; gap: 0.35rem;">
             <button
               type="button"
@@ -849,7 +831,7 @@
         <div class="panel-body">
           <!-- Iniciar Chat Individual -->
           <section class="section-card" aria-labelledby="titulo-chat-ind">
-            <h2 id="titulo-chat-ind" class="section-title">➕ Iniciar Chat Individual</h2>
+            <h2 id="titulo-chat-ind" class="section-title">➕ Iniciar Nuevo Chat al</h2>
             <label for="peer-user" class="chat-subtitle">Compañero de estudio:</label>
             <select id="peer-user" class="select-control" aria-label="Elegir compañero de estudio"></select>
 
@@ -909,7 +891,7 @@
             onclick="recargarMensajesActivos()"
             aria-label="Recargar mensajes de la conversación actual"
           >
-            🔄 Recargar
+            🔄 Actualizar
           </button>
         </div>
 
@@ -942,7 +924,7 @@
         aria-label="Centro de notificaciones y eventos en tiempo real"
       >
         <div class="panel-header">
-          <span>🔔 Alertas</span>
+          <span>🔔 Notificaciones</span>
           <div style="display: flex; gap: 0.3rem;">
             <button
               type="button"
@@ -951,7 +933,7 @@
               aria-label="Limpiar todas las notificaciones"
               title="Vaciar todas las alertas"
             >
-              🗑️ Limpiar
+              🗑️ Borrar
             </button>
             <button
               type="button"
@@ -1028,9 +1010,6 @@
   </div>
 
   <script>
-    // =========================================================
-    // ESTADO GLOBAL Y MAPA DE NOMBRES (CERO IDs EN LA INTERFAZ)
-    // =========================================================
     let USUARIOS_CACHE = [];
     let MATERIAS_CACHE = [];
     let MAPA_NOMBRES = {};
@@ -1038,7 +1017,6 @@
     let CONVERSACION_ACTIVA = null;
     let WS_CLIENT = null;
 
-    // Inicializar URL del backend automáticamente (Soporta file://, Live Server, Localhost y Railway)
     const inputApiUrl = document.getElementById("api-url");
     if (
       window.location.protocol === "file:" ||
@@ -1080,9 +1058,6 @@
       document.getElementById("monitor-log").textContent = "";
     }
 
-    // =========================================================
-    // GESTIÓN DE TEMA (NOCHE NEÓN / CLARO CON LOCALSTORAGE)
-    // =========================================================
     function aplicarTemaGuardado() {
       const guardado = localStorage.getItem("studymatch_theme") || "dark";
       document.documentElement.setAttribute("data-theme", guardado);
@@ -1102,13 +1077,10 @@
       if (tema === "light") {
         btn.innerHTML = '☀️ <span id="theme-label" class="hide-mobile">Modo Claro</span>';
       } else {
-        btn.innerHTML = '🌙 <span id="theme-label" class="hide-mobile">Noche Neón</span>';
+        btn.innerHTML = '🌙 <span id="theme-label" class="hide-mobile">Modo Noche</span>';
       }
     }
 
-    // =========================================================
-    // PANELES DESLIZANTES (MÓVIL) Y COLAPSABLES (ESCRITORIO)
-    // =========================================================
     function esVistaMovil() {
       return window.innerWidth < 1024;
     }
@@ -1158,9 +1130,6 @@
       }
     });
 
-    // =========================================================
-    // CARGA DE DATOS INICIALES Y RENDERIZADO DE NOMBRES REALES
-    // =========================================================
     async function sincronizarTodo() {
       try {
         const url = `${getBaseUrl()}/api/v1/datos-iniciales`;
@@ -1275,9 +1244,6 @@
       await Promise.all([cargarConversaciones(), cargarNotificaciones()]);
     }
 
-    // =========================================================
-    // CONEXIÓN WEBSOCKET (WS:// EN LOCAL Y WSS:// EN RAILWAY)
-    // =========================================================
     function conectarWebSocket(usuarioId) {
       if (WS_CLIENT) {
         WS_CLIENT.onclose = null;
@@ -1334,9 +1300,6 @@
       };
     }
 
-    // =========================================================
-    // CONVERSACIONES Y GRUPOS
-    // =========================================================
     async function cargarConversaciones() {
       if (!USUARIO_ACTIVO_ID) return;
       try {
@@ -1405,7 +1368,7 @@
 
       await cargarConversaciones();
       await recargarMensajesActivos();
-      await cargarNotificaciones(); // Limpia de la bandeja las notificaciones de mensajes de este chat
+      await cargarNotificaciones();
     }
 
     async function crearChatIndividual() {
@@ -1486,9 +1449,6 @@
       }
     }
 
-    // =========================================================
-    // MENSAJES EN TIEMPO REAL Y BORRADO LÓGICO
-    // =========================================================
     async function recargarMensajesActivos() {
       if (!CONVERSACION_ACTIVA || !USUARIO_ACTIVO_ID) return;
       const cid = CONVERSACION_ACTIVA.conversacion_id;
@@ -1590,9 +1550,6 @@
       }
     }
 
-    // =========================================================
-    // NOTIFICACIONES CON AUTO-LIMPIEZA Y BORRADO INDIVIDUAL/MASIVO
-    // =========================================================
     async function cargarNotificaciones() {
       if (!USUARIO_ACTIVO_ID) return;
       try {
@@ -1601,7 +1558,6 @@
         const todas = Array.isArray(data) ? data : (data.notificaciones || []);
         const mias = todas.filter((n) => (!n.usuario_id || Number(n.usuario_id) === USUARIO_ACTIVO_ID) && !n.leida);
 
-        // Actualizar contador de notificaciones en la barra superior
         const badgeCount = document.getElementById("notif-badge-count");
         if (mias.length > 0) {
           badgeCount.textContent = String(mias.length);
@@ -1710,9 +1666,6 @@
       }
     }
 
-    // =========================================================
-    // ARRANQUE INICIAL
-    // =========================================================
     window.addEventListener("DOMContentLoaded", () => {
       aplicarTemaGuardado();
       sincronizarTodo();

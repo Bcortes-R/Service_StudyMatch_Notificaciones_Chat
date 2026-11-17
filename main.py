@@ -45,15 +45,15 @@ def fmt_fecha(val: Any) -> str:
 def nombre_completo_usuario(u: Any, fallback_texto: str = "Estudiante de StudyMatch") -> str:
     if u is None:
         return fallback_texto
-    nombre = (u.nombre or "").strip()
-    apellido = (u.apellido or "").strip()
+    nombre = (getattr(u, "nombre", "") or "").strip()
+    apellido = (getattr(u, "apellido", "") or "").strip()
     completo = f"{nombre} {apellido}".strip()
-    return completo if completo else (u.correo or fallback_texto)
+    return completo if completo else (getattr(u, "correo", "") or fallback_texto)
 
 
 app = FastAPI(
     title="StudyMatch - Servicio de Mensajería y Notificaciones",
-    version="2.4-NocheNeon",
+    version="2.5-NocheNeon",
     description="Microservicio en producción sincronizado con Neon PostgreSQL, Render Matching y Servicio de Grupos."
 )
 
@@ -154,9 +154,9 @@ async def obtener_datos_iniciales(db: Session = Depends(get_db)):
             {
                 "usuario_id": u.usuario_id,
                 "nombre": u.nombre,
-                "apellido": u.apellido or "",
+                "apellido": getattr(u, "apellido", "") or "",
                 "nombre_completo": nombre_completo_usuario(u),
-                "correo": u.correo,
+                "correo": getattr(u, "correo", "") or "",
                 "carrera": getattr(u, "carrera", None)
             }
             for u in usuarios_db
@@ -410,7 +410,6 @@ async def crear_conversacion_grupal(
         db.refresh(msg_bienvenida)
 
         for uid in lista_miembros:
-            # Enviar evento de nuevo mensaje por WebSocket
             if manager.is_connected(uid):
                 await manager.send_to_user(uid, {
                     "evento": "nuevo_mensaje",
@@ -427,7 +426,6 @@ async def crear_conversacion_grupal(
                     }
                 })
 
-            # Crear notificación de nuevo grupo para los demás miembros invitados
             if uid != creador_id:
                 notif_grupo = models.Notificacion(
                     usuario_id=uid,
@@ -515,7 +513,6 @@ async def enviar_mensaje(
         "enviado_en": fmt_fecha(nuevo_msg.enviado_en)
     }
 
-    # Emitir mensaje y crear notificación para destinatarios
     if es_grupal:
         grp = db.query(models.Grupo).filter(models.Grupo.grupo_id == grupo_id).first()
         nombre_grp = grp.nombre if grp else "Grupo de estudio"
@@ -525,7 +522,6 @@ async def enviar_mensaje(
             if manager.is_connected(m.usuario_id):
                 await manager.send_to_user(m.usuario_id, {"evento": "nuevo_mensaje", "data": payload_msg})
 
-            # Crear notificación de nuevo mensaje grupal para todos menos el remitente
             if m.usuario_id != datos.remitente_id:
                 notif_grp = models.Notificacion(
                     usuario_id=m.usuario_id,
@@ -557,7 +553,6 @@ async def enviar_mensaje(
             if uid and manager.is_connected(uid):
                 await manager.send_to_user(uid, {"evento": "nuevo_mensaje", "data": payload_msg})
 
-        # Crear notificación de nuevo mensaje directo para el receptor
         if receptor_id and receptor_id != datos.remitente_id:
             notif_msg = models.Notificacion(
                 usuario_id=receptor_id,
@@ -834,7 +829,6 @@ async def crear_notificacion(
     nombre_destino = nombre_completo_usuario(usuario_real)
     nombre_compa = nombre_completo_usuario(u_match, "un compañero compatible")
 
-    # 1. Guardar notificación para el estudiante destino con el nombre real
     texto_destino = f"¡Nuevo match ({evento.porcentaje_match}%) con {nombre_compa}!"[:150]
     nueva_notif = models.Notificacion(
         usuario_id=evento.usuario_id,
@@ -861,7 +855,6 @@ async def crear_notificacion(
     if manager.is_connected(evento.usuario_id):
         await manager.send_to_user(evento.usuario_id, {"evento": "nueva_notificacion", "data": payload_destino})
 
-    # 2. Guardar y enviar notificación espejo en tiempo real para el otro estudiante del match
     if evento.usuario_match_id != evento.usuario_id and u_match is not None:
         notif_espejo = models.Notificacion(
             usuario_id=evento.usuario_match_id,
@@ -905,7 +898,6 @@ async def listar_notificaciones(
     if usuario_id is not None:
         query = query.filter(models.Notificacion.usuario_id == usuario_id)
 
-    # Por defecto solo devuelve las notificaciones pendientes (no vistas aún)
     if not incluir_leidas:
         query = query.filter(models.Notificacion.leida.is_(False))
 
@@ -914,7 +906,6 @@ async def listar_notificaciones(
     resultado = []
     for n in notifs:
         texto_formateado = n.texto or ""
-        # Reemplazar textos históricos que tenían "estudiante X" por el nombre real de Neon
         for uid, nombre_real in usuarios_map.items():
             texto_formateado = texto_formateado.replace(f"estudiante {uid}", nombre_real)
             texto_formateado = texto_formateado.replace(f"Estudiante #{uid}", nombre_real)
