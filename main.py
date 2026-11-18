@@ -1,21 +1,28 @@
+# pyright: reportGeneralTypeIssues=false
 import os
+from datetime import date, datetime, timedelta, timezone
 from pathlib import Path
-from datetime import datetime, date, timezone, timedelta
-from typing import List, Dict, Any, Optional
+from typing import Any, Dict, List, Optional
 
 import httpx
 from dotenv import load_dotenv
-from fastapi import FastAPI, Depends, HTTPException, WebSocket, WebSocketDisconnect, Query
+from fastapi import (
+    Depends,
+    FastAPI,
+    HTTPException,
+    Query,
+    WebSocket,
+    WebSocketDisconnect,
+)
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import HTMLResponse
+from sqlalchemy import and_, or_
 from sqlalchemy.orm import Session
-from sqlalchemy import or_, and_
 
-from database import get_db
 import models
 import schemas
+from database import get_db
 
-# Forzar la recarga del archivo .env
 load_dotenv(override=True)
 
 BOGOTA_TZ = timezone(timedelta(hours=-5))
@@ -53,8 +60,8 @@ def nombre_completo_usuario(u: Any, fallback_texto: str = "Estudiante de StudyMa
 
 app = FastAPI(
     title="StudyMatch - Servicio de Mensajería y Notificaciones",
-    version="2.5-NocheNeon",
-    description="Microservicio en producción sincronizado con Neon PostgreSQL, Render Matching y Servicio de Grupos."
+    version="2.6-NocheNeon",
+    description="Microservicio en producción sincronizado con el esquema real de Neon PostgreSQL."
 )
 
 app.add_middleware(
@@ -76,7 +83,6 @@ USUARIOS_SERVICE_URL = os.getenv(
 
 INTERNAL_HEADERS = {"X-Internal-Service": "mensajeria-notificaciones"}
 
-# Registro en memoria de salas individuales recién abiertas (sin mensajes aún)
 PARES_INDIVIDUALES: Dict[int, List[int]] = {}
 SEQ_INDIVIDUAL: int = 1
 
@@ -154,10 +160,10 @@ async def obtener_datos_iniciales(db: Session = Depends(get_db)):
             {
                 "usuario_id": u.usuario_id,
                 "nombre": u.nombre,
-                "apellido": getattr(u, "apellido", "") or "",
+                "apellido": u.apellido or "",
                 "nombre_completo": nombre_completo_usuario(u),
-                "correo": getattr(u, "correo", "") or "",
-                "carrera": getattr(u, "carrera", None)
+                "correo": u.correo or "",
+                "carrera": u.carrera
             }
             for u in usuarios_db
         ],
@@ -209,7 +215,6 @@ async def crear_conversacion_individual(
     if datos.origen == "match":
         match_confirmado = False
 
-        # 1. Verificar si ya existe un match registrado en la tabla notificaciones de Neon (leída o no leída)
         notifs_match = db.query(models.Notificacion).filter(
             models.Notificacion.usuario_id == datos.usuario_id_1,
             models.Notificacion.tipo == "nuevo_match"
@@ -226,7 +231,6 @@ async def crear_conversacion_individual(
                 match_confirmado = True
                 break
 
-        # 2. Si no está en las notificaciones locales, consultar el Servicio de Matching en Render
         if not match_confirmado:
             try:
                 async with httpx.AsyncClient(timeout=20.0, headers=INTERNAL_HEADERS, follow_redirects=True) as client:
@@ -346,7 +350,7 @@ async def crear_conversacion_grupal(
             .first()
         )
 
-    # 2. Si no existe aún (ej. creado desde nuestro cliente web), insertarlo en Neon
+    # 2. Si no existe aún, insertarlo en Neon usando solo las columnas reales de la tabla grupos
     if grupo_actual is None:
         materia_id = getattr(datos, "materia_id", None) or 1
         materia_db = db.query(models.Materia).filter(models.Materia.materia_id == materia_id).first()
@@ -357,11 +361,7 @@ async def crear_conversacion_grupal(
 
         grupo_actual = models.Grupo(
             nombre=nombre_limpio,
-            descripcion=f"Grupo de estudio: {nombre_limpio}",
             materia_id=materia_id,
-            creador_id=creador_id,
-            max_miembros=max(10, len(lista_miembros)),
-            estado="activo",
             fecha_creacion=now_bogota().date()
         )
         db.add(grupo_actual)
@@ -382,8 +382,7 @@ async def crear_conversacion_grupal(
             db.add(models.GrupoUsuario(
                 grupo_id=grupo_actual.grupo_id,
                 usuario_id=uid,
-                rol=rol_miembro,
-                fecha_union=now_bogota().date()
+                rol=rol_miembro
             ))
     db.commit()
 
@@ -600,6 +599,7 @@ async def eliminar_mensaje(
         raise HTTPException(status_code=403, detail="Solo el autor puede eliminar este mensaje.")
 
     msg.estado = "eliminado"
+    msg.eliminado_en = now_bogota()
     db.commit()
     db.refresh(msg)
 
@@ -696,7 +696,6 @@ async def listar_mensajes_conversacion(
             .all()
         )
 
-    # Auto-limpiar notificaciones de "nuevo_mensaje" cuando el usuario abre/lee esta conversación
     if usuario_id is not None and mensajes_db:
         ids_mensajes_sala = [m.mensaje_id for m in mensajes_db]
         if ids_mensajes_sala:
@@ -715,9 +714,9 @@ async def listar_mensajes_conversacion(
             "remitente_nombre": usuarios_map.get(m.remitente_id, "Estudiante"),
             "receptor_id": m.receptor_id,
             "grupo_id": m.grupo_id,
-            "contenido": None if m.estado == "eliminado" else m.contenido,
+            "contenido": None if str(m.estado) == "eliminado" else m.contenido,
             "estado": m.estado,
-            "eliminado": m.estado == "eliminado",
+            "eliminado": str(m.estado) == "eliminado",
             "enviado_en": fmt_fecha(m.enviado_en)
         }
         for m in mensajes_db
@@ -735,7 +734,6 @@ async def listar_conversaciones_usuario(
     resultado: List[Dict[str, Any]] = []
     contactos_vistos = set()
 
-    # 1. PRIMERO: Chats individuales recién abiertos en memoria
     for par in reversed(list(PARES_INDIVIDUALES.values())):
         if id in par:
             otro_id = par[1] if par[0] == id else par[0]
@@ -760,13 +758,12 @@ async def listar_conversaciones_usuario(
                     "nombre": nombre_chat,
                     "ultimo_mensaje": (
                         ult_msg.contenido
-                        if (ult_msg and ult_msg.estado != "eliminado")
+                        if (ult_msg and str(ult_msg.estado) != "eliminado")
                         else "Sala abierta - envía el primer mensaje"
                     ),
                     "creada_en": fmt_fecha(ult_msg.enviado_en) if ult_msg else now_bogota_iso()
                 })
 
-    # 2. SEGUNDO: Chats individuales con historial de mensajes en Neon
     msgs_ind = db.query(models.Mensaje).filter(
         and_(
             models.Mensaje.grupo_id.is_(None),
@@ -785,11 +782,10 @@ async def listar_conversaciones_usuario(
                 "tipo": "individual",
                 "grupo_id": None,
                 "nombre": nombre_chat,
-                "ultimo_mensaje": None if m.estado == "eliminado" else m.contenido,
+                "ultimo_mensaje": None if str(m.estado) == "eliminado" else m.contenido,
                 "creada_en": fmt_fecha(m.enviado_en)
             })
 
-    # 3. TERCERO: Conversaciones grupales en Neon (sin repetir grupos con el mismo nombre)
     nombres_grupo_vistos = set()
     membresias = db.query(models.GrupoUsuario).filter(models.GrupoUsuario.usuario_id == id).all()
     for memb in membresias:
@@ -806,7 +802,7 @@ async def listar_conversaciones_usuario(
             "tipo": "grupal",
             "grupo_id": grp.grupo_id,
             "nombre": grp.nombre,
-            "ultimo_mensaje": None if (ult is None or ult.estado == "eliminado") else ult.contenido,
+            "ultimo_mensaje": None if (ult is None or str(ult.estado) == "eliminado") else ult.contenido,
             "creada_en": fmt_fecha(grp.fecha_creacion)
         })
 

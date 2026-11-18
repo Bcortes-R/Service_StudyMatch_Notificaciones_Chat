@@ -761,7 +761,7 @@
             onclick="sincronizarTodo()"
             aria-label="Sincronizar datos con el servidor"
           >
-            🔄 Sincronizar
+            🔄 Actualizar
           </button>
         </div>
 
@@ -785,7 +785,7 @@
           onclick="toggleSidePanel('right')"
           title="Mostrar u ocultar panel de notificaciones"
         >
-          🔔 <span class="hide-mobile">Alertas</span>
+          🔔 <span class="hide-mobile">Notificaciones</span>
           <span id="notif-badge-count" class="notif-counter hidden">0</span>
         </button>
       </div>
@@ -831,9 +831,9 @@
         <div class="panel-body">
           <!-- Iniciar Chat Individual -->
           <section class="section-card" aria-labelledby="titulo-chat-ind">
-            <h2 id="titulo-chat-ind" class="section-title">➕ Iniciar Nuevo Chat al</h2>
-            <label for="peer-user" class="chat-subtitle">Compañero de estudio:</label>
-            <select id="peer-user" class="select-control" aria-label="Elegir compañero de estudio"></select>
+            <h2 id="titulo-chat-ind" class="section-title">➕ Iniciar Nuevo Chat </h2>
+            <label for="peer-user" class="chat-subtitle">Compañeros de estudio:</label>
+            <select id="peer-user" class="select-control" aria-label="Elegir compañero"></select>
 
             <label for="chat-origin" class="chat-subtitle">Modo de apertura:</label>
             <select id="chat-origin" class="select-control" aria-label="Modo de validación de la conversación">
@@ -848,7 +848,7 @@
 
           <!-- Crear Grupo de Estudio (Seleccionando Nombres, sin IDs) -->
           <section class="section-card" aria-labelledby="titulo-grupo">
-            <h2 id="titulo-grupo" class="section-title">👥 Crear Grupo de Estudio</h2>
+            <h2 id="titulo-grupo" class="section-title">👥 Crear Nuevo Grupo</h2>
             <input
               type="text"
               id="group-name"
@@ -870,7 +870,7 @@
 
           <!-- Salas Activas -->
           <section class="section-card" style="flex: 1;" aria-labelledby="titulo-salas">
-            <h2 id="titulo-salas" class="section-title">Salas Activas</h2>
+            <h2 id="titulo-salas" class="section-title">Chats Activos</h2>
             <div id="conv-list" class="conv-list" role="list"></div>
           </section>
         </div>
@@ -880,9 +880,9 @@
       <main class="chat-main" aria-label="Ventana principal de mensajes">
         <div class="chat-header">
           <div class="chat-title-group">
-            <h1 id="active-chat-title" class="chat-title">Selecciona una conversación</h1>
+            <h1 id="active-chat-title" class="chat-title">Seleccionar una conversación</h1>
             <span id="active-chat-subtitle" class="chat-subtitle">
-              Elige un compañero o grupo de estudio en el panel izquierdo para conversar en tiempo real.
+              Elige un compañero o grupo de estudio para iniciar una conversación.
             </span>
           </div>
           <button
@@ -897,7 +897,7 @@
 
         <div id="messages-viewport" class="messages-viewport" role="log" aria-live="polite">
           <div class="empty-state">
-            Elige un compañero o un grupo de estudio en el panel izquierdo para conversar en tiempo real.
+            Elige un compañero o grupo de estudio para iniciar una conversación.
           </div>
         </div>
 
@@ -957,7 +957,7 @@
         <div class="panel-body">
           <!-- Emitir Evento de Match por Nombre -->
           <section class="section-card" aria-labelledby="titulo-simular-match">
-            <h2 id="titulo-simular-match" class="section-title">✨ Emitir Evento de Match</h2>
+            <h2 id="titulo-simular-match" class="section-title">✨ Crear Nuevo Match</h2>
             <div style="display: flex; gap: 0.4rem;">
               <select
                 id="notif-target-user"
@@ -976,15 +976,15 @@
               />
             </div>
             <button type="button" class="btn-success" onclick="simularNuevoMatch()">
-              Simular Nuevo Match
+              Crear Nuevo Match
             </button>
           </section>
 
           <!-- Mis Alertas Recibidas -->
           <section class="section-card" style="flex: 1;" aria-labelledby="titulo-alertas">
             <div class="section-title">
-              <span id="titulo-alertas">Mis Alertas Pendientes</span>
-              <span class="chat-subtitle" style="font-size: 0.68rem; text-transform: none;">Clic para descartar</span>
+              <span id="titulo-alertas">Notificaciones Pendientes</span>
+              <span class="chat-subtitle" style="font-size: 0.68rem; text-transform: none;">Descartar</span>
             </div>
             <div id="notif-list" class="notif-list" role="list"></div>
           </section>
@@ -992,17 +992,17 @@
           <!-- Monitor Técnico REST / WebSocket -->
           <section class="section-card" aria-labelledby="titulo-monitor">
             <div class="section-title">
-              <span id="titulo-monitor">📡 Monitor REST / WebSocket</span>
+              <span id="titulo-monitor">📡 Estado REST / WebSocket</span>
               <button
                 type="button"
                 class="icon-btn"
                 style="padding: 0.15rem 0.45rem; font-size: 0.7rem;"
                 onclick="limpiarMonitor()"
               >
-                Limpiar
+                Borrar log
               </button>
             </div>
-            <div id="monitor-log" class="monitor-log" aria-live="off">Listo para registrar eventos...</div>
+            <div id="monitor-log" class="monitor-log" aria-live="off">Registrando eventos...</div>
           </section>
         </div>
       </aside>
