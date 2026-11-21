@@ -1010,6 +1010,52 @@
   </div>
 
   <script>
+    /* studymatch-integracion.js — sin librerías. Versión 1 del «Acuerdo de integración de módulos». */
+    (function () {
+      var ORIGEN_STUDYMATCH = 'http://localhost:4200';   // origen EXACTO del Frontend (en producción: su dominio publicado)
+      var token = null;                                  // solo en memoria
+      var usuarioId = null;                              // id del usuario logueado (de la base de datos, vía el login)
+      var parametros = {};                               // parámetros extra enviados por el login (puede venir vacío)
+      var ultimo = 0;
+
+      function enviar(tipo, extra) {
+        var m = { app: 'studymatch', v: 1, tipo: tipo };
+        for (var k in (extra || {})) m[k] = extra[k];
+        window.parent.postMessage(m, ORIGEN_STUDYMATCH);  // nunca '*'
+      }
+
+      window.addEventListener('message', function (ev) {
+        if (ev.origin !== ORIGEN_STUDYMATCH || ev.source !== window.parent) return;
+        var m = ev.data;
+        if (!m || m.app !== 'studymatch' || m.v !== 1) return;
+        if (m.tipo === 'SESION') {
+          token = m.token;
+          usuarioId = typeof m.usuario_id === 'number' ? m.usuario_id : null;
+          parametros = (m.parametros && typeof m.parametros === 'object') ? m.parametros : {};
+          window.dispatchEvent(new CustomEvent('studymatch:sesion', { detail: m }));
+        }
+        if (m.tipo === 'CERRAR_SESION') {
+          token = null; usuarioId = null; parametros = {};
+          window.dispatchEvent(new Event('studymatch:cerrar'));
+        }
+      });
+
+      ['pointerdown', 'pointermove', 'keydown', 'scroll', 'touchstart'].forEach(function (nombre) {
+        window.addEventListener(nombre, function () {
+          var t = Date.now();
+          if (token && t - ultimo > 5000) { ultimo = t; enviar('ACTIVIDAD'); }
+        }, { passive: true, capture: true });
+      });
+
+      window.StudyMatch = {
+        token: function () { return token; },
+        usuarioId: function () { return usuarioId; },                          // número, o null si aún no hay sesión
+        parametros: function () { return JSON.parse(JSON.stringify(parametros)); },   // copia; {} si no hay
+        sesionInvalida: function () { enviar('SESION_INVALIDA'); }
+      };
+      enviar('LISTO');
+    })();
+
     let USUARIOS_CACHE = [];
     let MATERIAS_CACHE = [];
     let MAPA_NOMBRES = {};
@@ -1130,6 +1176,51 @@
       }
     });
 
+    async function aplicarUsuarioDesdeFront(id) {
+      if (USUARIOS_CACHE.length === 0) return;
+      const uid = Number(id);
+
+      const selSesion = document.getElementById("session-user");
+      const existe = uid > 0 && Array.from(selSesion.options).some((o) => Number(o.value) === uid);
+
+      if (existe) {
+        selSesion.value = String(uid);
+        selSesion.disabled = true;
+        await cambiarSesionEstudiante();
+      } else {
+        if (WS_CLIENT) {
+          WS_CLIENT.onclose = null;
+          WS_CLIENT.close();
+          WS_CLIENT = null;
+        }
+        USUARIO_ACTIVO_ID = null;
+        CONVERSACION_ACTIVA = null;
+
+        selSesion.value = "";
+        selSesion.disabled = true;
+
+        const badge = document.getElementById("ws-status");
+        badge.className = "ws-badge offline";
+        badge.textContent = "Usuario no registrado";
+
+        document.getElementById("conv-list").innerHTML =
+          `<div class="chat-subtitle" style="padding: 0.5rem;">Sin acceso: estudiante no encontrado.</div>`;
+        document.getElementById("notif-list").innerHTML =
+          `<div class="chat-subtitle" style="padding: 0.5rem;">Sin notificaciones disponibles.</div>`;
+        document.getElementById("messages-viewport").innerHTML =
+          `<div class="empty-state">⚠️ El usuario con ID <strong>${id ?? "nulo"}</strong> no existe en la base de datos de StudyMatch.</div>`;
+
+        document.getElementById("msg-input").disabled = true;
+        document.getElementById("btn-send").disabled = true;
+
+        registrarMonitor("⚠️ SESION_INVALIDA", `El usuario_id (${id}) enviado por el Frontend no existe en Neon.`);
+
+        if (window.StudyMatch && typeof window.StudyMatch.sesionInvalida === "function") {
+          window.StudyMatch.sesionInvalida();
+        }
+      }
+    }
+
     async function sincronizarTodo() {
       try {
         const url = `${getBaseUrl()}/api/v1/datos-iniciales`;
@@ -1157,7 +1248,14 @@
 
         registrarMonitor(`Sincronizados ${USUARIOS_CACHE.length} estudiantes`, MAPA_NOMBRES);
         poblarSelectoresPorNombre();
-        await cambiarSesionEstudiante();
+
+        const tieneSesionFront = window.StudyMatch && window.StudyMatch.token() !== null;
+        const idFront = window.StudyMatch && window.StudyMatch.usuarioId();
+        if (tieneSesionFront || idFront !== null) {
+          await aplicarUsuarioDesdeFront(idFront);
+        } else {
+          await cambiarSesionEstudiante();
+        }
       } catch (err) {
         registrarMonitor("ERROR SINCRONIZACIÓN", String(err));
       }
@@ -1665,6 +1763,24 @@
         registrarMonitor("ERROR SIMULAR MATCH", String(err));
       }
     }
+
+    window.addEventListener("studymatch:sesion", async (ev) => {
+      const detalle = ev.detail || {};
+      await aplicarUsuarioDesdeFront(detalle.usuario_id);
+    });
+
+    window.addEventListener("studymatch:cerrar", () => {
+      if (WS_CLIENT) {
+        WS_CLIENT.onclose = null;
+        WS_CLIENT.close();
+        WS_CLIENT = null;
+      }
+      USUARIO_ACTIVO_ID = null;
+      CONVERSACION_ACTIVA = null;
+      document.getElementById("session-user").disabled = false;
+      document.getElementById("messages-viewport").innerHTML =
+        `<div class="empty-state">Elige un compañero o grupo de estudio para iniciar una conversación.</div>`;
+    });
 
     window.addEventListener("DOMContentLoaded", () => {
       aplicarTemaGuardado();
